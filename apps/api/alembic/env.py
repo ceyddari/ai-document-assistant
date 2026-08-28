@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from app.core.config import get_settings
 from app.db.base import Base
-from app.models import Organization
+from app.models import Document, Organization
 
 config = context.config
 
@@ -21,7 +21,7 @@ config.set_main_option(
     settings.database_url.render_as_string(hide_password=False).replace("%", "%%"),
 )
 
-model_registry = (Organization,)
+model_registry = (Document, Organization)
 target_metadata = Base.metadata
 
 
