@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,6 +12,9 @@ class Settings(BaseSettings):
     postgres_password: SecretStr
     postgres_host: str
     postgres_port: int
+
+    storage_directory: Path = Path("storage/documents")
+    max_upload_size_mb: int = 10
 
     model_config = SettingsConfigDict(
         env_file=".env",

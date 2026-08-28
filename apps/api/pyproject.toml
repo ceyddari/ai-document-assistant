@@ -8,13 +8,20 @@ version = "0.1.0"
 description = "AI destekli şirket içi doküman asistanının FastAPI backend uygulaması"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "aiofiles",
     "alembic",
     "asyncpg",
     "fastapi",
     "pydantic-settings",
+    "python-multipart",
     "sqlalchemy[asyncio]",
     "uvicorn[standard]",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["alembic*", "tests*"]
 
 [project.optional-dependencies]
 dev = [
