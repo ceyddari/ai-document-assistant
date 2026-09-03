@@ -1,7 +1,7 @@
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import AsyncMock
-from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import UploadFile
@@ -9,12 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import Headers
 
 from app.core.config import Settings
-from app.models import Organization
+from app.models import Document, DocumentStatus, Organization
 from app.services import (
+    DocumentNotFoundError,
     DocumentTooLargeError,
     InvalidPdfError,
     OrganizationNotFoundError,
     create_document,
+    get_document_by_id,
+    list_documents,
 )
 
 
@@ -46,6 +49,25 @@ def create_upload_file(
         file=BytesIO(content),
         filename=filename,
         headers=Headers({"content-type": content_type}),
+    )
+
+
+def build_document(
+    *,
+    organization_id: UUID,
+    filename: str,
+) -> Document:
+    document_id = uuid4()
+
+    return Document(
+        id=document_id,
+        organization_id=organization_id,
+        original_filename=filename,
+        stored_filename=f"{document_id}.pdf",
+        storage_path=f"storage/documents/{document_id}.pdf",
+        content_type="application/pdf",
+        size_bytes=100,
+        status=DocumentStatus.PENDING,
     )
 
 
@@ -161,3 +183,125 @@ async def test_create_document_rejects_unknown_organization(
 
     assert list(settings.storage_directory.iterdir()) == []
     db_session.add.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_list_documents_returns_paginated_organization_documents(
+    db_session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    expected_documents = [
+        build_document(
+            organization_id=organization_id,
+            filename="policy.pdf",
+        ),
+        build_document(
+            organization_id=organization_id,
+            filename="handbook.pdf",
+        ),
+    ]
+
+    db_session.get.return_value = Organization(
+        id=organization_id,
+        name="Test Organization",
+        slug="test-organization",
+    )
+
+    scalar_result = MagicMock()
+    scalar_result.all.return_value = expected_documents
+
+    db_session.scalars.return_value = scalar_result
+    db_session.scalar.return_value = 2
+
+    documents, total = await list_documents(
+        organization_id=organization_id,
+        session=db_session,
+        limit=20,
+        offset=0,
+    )
+
+    assert documents == expected_documents
+    assert total == 2
+
+    db_session.get.assert_awaited_once_with(
+        Organization,
+        organization_id,
+    )
+    db_session.scalars.assert_awaited_once()
+    db_session.scalar.assert_awaited_once()
+
+    documents_statement = db_session.scalars.await_args.args[0]
+    count_statement = db_session.scalar.await_args.args[0]
+
+    assert organization_id in documents_statement.compile().params.values()
+    assert organization_id in count_statement.compile().params.values()
+
+
+@pytest.mark.asyncio
+async def test_list_documents_rejects_unknown_organization(
+    db_session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    db_session.get.return_value = None
+
+    with pytest.raises(
+        OrganizationNotFoundError,
+        match="Organizasyon bulunamadı",
+    ):
+        await list_documents(
+            organization_id=organization_id,
+            session=db_session,
+            limit=20,
+            offset=0,
+        )
+
+    db_session.scalars.assert_not_awaited()
+    db_session.scalar.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_get_document_by_id_returns_organization_document(
+    db_session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    document = build_document(
+        organization_id=organization_id,
+        filename="policy.pdf",
+    )
+    db_session.scalar.return_value = document
+
+    result = await get_document_by_id(
+        organization_id=organization_id,
+        document_id=document.id,
+        session=db_session,
+    )
+
+    assert result is document
+    db_session.scalar.assert_awaited_once()
+
+    statement = db_session.scalar.await_args.args[0]
+    statement_parameters = statement.compile().params.values()
+
+    assert organization_id in statement_parameters
+    assert document.id in statement_parameters
+
+
+@pytest.mark.asyncio
+async def test_get_document_by_id_rejects_missing_or_other_organization_document(
+    db_session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    document_id = uuid4()
+    db_session.scalar.return_value = None
+
+    with pytest.raises(
+        DocumentNotFoundError,
+        match="Doküman bulunamadı",
+    ):
+        await get_document_by_id(
+            organization_id=organization_id,
+            document_id=document_id,
+            session=db_session,
+        )
+
+    db_session.scalar.assert_awaited_once()

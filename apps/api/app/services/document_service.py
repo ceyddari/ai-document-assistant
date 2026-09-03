@@ -1,8 +1,10 @@
+from collections.abc import Sequence
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import aiofiles
 from fastapi import UploadFile
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +24,10 @@ class InvalidPdfError(Exception):
 
 
 class DocumentTooLargeError(Exception):
+    pass
+
+
+class DocumentNotFoundError(Exception):
     pass
 
 
@@ -105,5 +111,56 @@ async def create_document(
         await session.rollback()
         storage_path.unlink(missing_ok=True)
         raise
+
+    return document
+
+
+async def list_documents(
+    *,
+    organization_id: UUID,
+    session: AsyncSession,
+    limit: int,
+    offset: int,
+) -> tuple[Sequence[Document], int]:
+    organization = await session.get(Organization, organization_id)
+
+    if organization is None:
+        raise OrganizationNotFoundError("Organizasyon bulunamadı.")
+
+    documents_statement = (
+        select(Document)
+        .where(Document.organization_id == organization_id)
+        .order_by(Document.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    count_statement = (
+        select(func.count())
+        .select_from(Document)
+        .where(Document.organization_id == organization_id)
+    )
+
+    documents = await session.scalars(documents_statement)
+    total = await session.scalar(count_statement)
+
+    return documents.all(), int(total or 0)
+
+
+async def get_document_by_id(
+    *,
+    organization_id: UUID,
+    document_id: UUID,
+    session: AsyncSession,
+) -> Document:
+    statement = select(Document).where(
+        Document.id == document_id,
+        Document.organization_id == organization_id,
+    )
+
+    document = await session.scalar(statement)
+
+    if document is None:
+        raise DocumentNotFoundError("Doküman bulunamadı.")
 
     return document

@@ -1,3 +1,6 @@
-from app.schemas.document import DocumentResponse
+from app.schemas.document import DocumentListResponse, DocumentResponse
 
-__all__ = ["DocumentResponse"]
+__all__ = [
+    "DocumentListResponse",
+    "DocumentResponse",
+]
