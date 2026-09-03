@@ -1,11 +1,9 @@
-from typing import Annotated
-
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db_session
+from app.api.dependencies import DatabaseSession
+from app.api.routes import documents_router
 
 app = FastAPI(
     title="AI Document Assistant API",
@@ -13,8 +11,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
-
-DatabaseSession = Annotated[AsyncSession, Depends(get_db_session)]
+app.include_router(documents_router)
 
 
 @app.get("/health", tags=["system"])
