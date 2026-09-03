@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     )
 
     @property
+    def max_upload_size_bytes(self) -> int:
+        return self.max_upload_size_mb * 1024 * 1024
+
+    @property
     def database_url(self) -> URL:
         return URL.create(
             drivername="postgresql+asyncpg",
