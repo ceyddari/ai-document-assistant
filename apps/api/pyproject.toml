@@ -13,6 +13,7 @@ dependencies = [
     "asyncpg",
     "fastapi",
     "pydantic-settings",
+    "pypdf",
     "python-multipart",
     "sqlalchemy[asyncio]",
     "uvicorn[standard]",
@@ -28,6 +29,7 @@ dev = [
     "httpx2",
     "pytest",
     "pytest-asyncio",
+    "reportlab",
     "ruff",
 ]
 
