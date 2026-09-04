@@ -1,3 +1,7 @@
+from app.services.document_processing_service import (
+    DocumentProcessingError,
+    process_document,
+)
 from app.services.document_service import (
     DocumentNotFoundError,
     DocumentTooLargeError,
@@ -16,6 +20,7 @@ from app.services.pdf_parser import (
 
 __all__ = [
     "DocumentNotFoundError",
+    "DocumentProcessingError",
     "DocumentTooLargeError",
     "EncryptedPdfError",
     "InvalidPdfError",
@@ -26,4 +31,5 @@ __all__ = [
     "get_document_by_id",
     "list_documents",
     "parse_pdf",
+    "process_document",
 ]
