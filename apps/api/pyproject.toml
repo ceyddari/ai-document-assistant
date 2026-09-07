@@ -13,6 +13,7 @@ dependencies = [
     "asyncpg",
     "fastapi",
     "langchain-text-splitters",
+    "pgvector",
     "pydantic-settings",
     "pypdf",
     "python-multipart",
