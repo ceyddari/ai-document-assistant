@@ -12,6 +12,7 @@ dependencies = [
     "alembic",
     "asyncpg",
     "fastapi",
+    "langchain-text-splitters",
     "pydantic-settings",
     "pypdf",
     "python-multipart",
