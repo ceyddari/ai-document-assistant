@@ -11,6 +11,11 @@ from app.services.document_service import (
     get_document_by_id,
     list_documents,
 )
+from app.services.embedding_service import (
+    EmbeddingDimensionError,
+    EmbeddingService,
+    EmbeddingServiceError,
+)
 from app.services.pdf_parser import (
     EncryptedPdfError,
     ParsedPage,
@@ -26,6 +31,9 @@ __all__ = [
     "DocumentNotFoundError",
     "DocumentProcessingError",
     "DocumentTooLargeError",
+    "EmbeddingDimensionError",
+    "EmbeddingService",
+    "EmbeddingServiceError",
     "EncryptedPdfError",
     "InvalidPdfError",
     "OrganizationNotFoundError",

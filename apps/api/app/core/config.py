@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     postgres_host: str
     postgres_port: int
 
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_embedding_model: str = "bge-m3"
+
     storage_directory: Path = Path("storage/documents")
     max_upload_size_mb: int = 10
 
