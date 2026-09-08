@@ -4,15 +4,20 @@ from pathlib import Path
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Document, DocumentStatus
-from app.services.pdf_parser import (
-    ParsedPage,
-    PdfParsingError,
-    parse_pdf,
+from app.models import Document, DocumentChunk, DocumentStatus
+from app.services.embedding_service import (
+    EmbeddingService,
+    EmbeddingServiceError,
 )
+from app.services.pdf_parser import PdfParsingError, parse_pdf
+from app.services.text_chunker import chunk_pages
 
 
 class DocumentProcessingError(Exception):
+    pass
+
+
+class EmptyDocumentError(Exception):
     pass
 
 
@@ -20,7 +25,8 @@ async def process_document(
     *,
     document: Document,
     session: AsyncSession,
-) -> list[ParsedPage]:
+    embedding_service: EmbeddingService,
+) -> list[DocumentChunk]:
     document.status = DocumentStatus.PROCESSING
     document.error_message = None
 
@@ -32,13 +38,45 @@ async def process_document(
             Path(document.storage_path),
         )
 
+        text_chunks = chunk_pages(pages)
+
+        if not text_chunks:
+            raise EmptyDocumentError("Dokümanda işlenebilir metin bulunamadı.")
+
+        embeddings = await embedding_service.embed_documents(
+            [chunk.content for chunk in text_chunks]
+        )
+
+        document_chunks = [
+            DocumentChunk(
+                organization_id=document.organization_id,
+                document_id=document.id,
+                page_number=text_chunk.page_number,
+                chunk_index=text_chunk.chunk_index,
+                content=text_chunk.content,
+                embedding=embedding,
+            )
+            for text_chunk, embedding in zip(
+                text_chunks,
+                embeddings,
+                strict=True,
+            )
+        ]
+
+        session.add_all(document_chunks)
+
         document.status = DocumentStatus.READY
+
         await session.commit()
         await session.refresh(document)
 
-        return pages
+        return document_chunks
 
-    except PdfParsingError as error:
+    except (
+        PdfParsingError,
+        EmptyDocumentError,
+        EmbeddingServiceError,
+    ) as error:
         await session.rollback()
 
         document.status = DocumentStatus.FAILED
