@@ -1,7 +1,15 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.dependencies import AppSettings, DatabaseSession
@@ -15,6 +23,7 @@ from app.services import (
     get_document_by_id,
     list_documents,
 )
+from app.tasks.document_tasks import process_document_in_background
 
 router = APIRouter(
     prefix="/organizations/{organization_id}/documents",
@@ -98,6 +107,7 @@ async def get_document(
 )
 async def upload_document(
     organization_id: UUID,
+    background_tasks: BackgroundTasks,
     file: Annotated[UploadFile, File(...)],
     session: DatabaseSession,
     settings: AppSettings,
@@ -108,6 +118,11 @@ async def upload_document(
             organization_id=organization_id,
             session=session,
             settings=settings,
+        )
+
+        background_tasks.add_task(
+            process_document_in_background,
+            document.id,
         )
 
     except OrganizationNotFoundError as error:

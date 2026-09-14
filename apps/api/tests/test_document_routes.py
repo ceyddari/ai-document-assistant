@@ -52,6 +52,20 @@ def create_document_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 @pytest.fixture
+def process_document_in_background_mock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> AsyncMock:
+    mock = AsyncMock()
+
+    monkeypatch.setattr(
+        "app.api.routes.documents.process_document_in_background",
+        mock,
+    )
+
+    return mock
+
+
+@pytest.fixture
 def list_documents_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     mock = AsyncMock()
 
@@ -122,6 +136,7 @@ def test_upload_document_returns_created_document(
     db_session: AsyncMock,
     settings: Settings,
     create_document_mock: AsyncMock,
+    process_document_in_background_mock: AsyncMock,
 ) -> None:
     organization_id = uuid4()
     document_id = uuid4()
@@ -174,6 +189,10 @@ def test_upload_document_returns_created_document(
     assert call_arguments["session"] is db_session
     assert call_arguments["settings"] is settings
     assert call_arguments["file"].filename == "policy.pdf"
+
+    process_document_in_background_mock.assert_awaited_once_with(
+        document_id,
+    )
 
 
 @pytest.mark.parametrize(
