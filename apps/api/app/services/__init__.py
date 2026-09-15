@@ -22,6 +22,10 @@ from app.services.pdf_parser import (
     PdfParsingError,
     parse_pdf,
 )
+from app.services.retrieval_service import (
+    RetrievedChunk,
+    search_relevant_chunks,
+)
 from app.services.text_chunker import (
     TextChunk,
     chunk_pages,
@@ -39,6 +43,7 @@ __all__ = [
     "OrganizationNotFoundError",
     "ParsedPage",
     "PdfParsingError",
+    "RetrievedChunk",
     "TextChunk",
     "chunk_pages",
     "create_document",
@@ -46,4 +51,5 @@ __all__ = [
     "list_documents",
     "parse_pdf",
     "process_document",
+    "search_relevant_chunks",
 ]
