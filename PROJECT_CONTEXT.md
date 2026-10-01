@@ -68,6 +68,9 @@ hataları güvenli `503` döndürür.
 - `GET /organizations/{organization_id}/documents/{document_id}`: detay
 - `POST /organizations/{organization_id}/search`: semantik kaynak araması
 - `POST /organizations/{organization_id}/ask`: kaynaklı RAG cevabı
+- `POST /organizations/{organization_id}/conversations`: conversation oluşturma
+- `GET /organizations/{organization_id}/conversations`: sayfalı conversation listesi
+- `GET /organizations/{organization_id}/conversations/{conversation_id}`: mesajlı detay
 
 Swagger: `http://127.0.0.1:8000/docs`
 
@@ -117,7 +120,7 @@ python -m pytest apps/api/tests -v -p no:cacheprovider --basetemp .codex-test-te
 ## Bilinen eksikler
 
 - Authentication/authorization yok; organization ID path'ten geliyor.
-- Conversation/message tabloları hazır; servis ve HTTP geçmiş yönetimi henüz yok.
+- Conversation create/list/detail API'leri hazır; `/ask` henüz mesajları kaydetmiyor.
 - `BackgroundTasks` kalıcı job queue değildir.
 - OCR ve gelişmiş PDF güvenlik kontrolleri yok.
 - Local storage abstraction arkasında değil.
@@ -127,8 +130,8 @@ python -m pytest apps/api/tests -v -p no:cacheprovider --basetemp .codex-test-te
 
 ## Önerilen sonraki sıra
 
-1. Conversation create/list/detail servis ve endpoint'lerini ekle.
-2. Ask endpoint'ini conversation geçmişiyle genişlet.
+1. Ask endpoint'ini conversation geçmişiyle genişlet.
+2. Assistant mesaj kaynaklarını detay response'una ekle.
 3. Authentication ve organization membership güvenliğini ekle.
 4. React + TypeScript + Vite frontend'i başlat.
 5. Kalıcı worker/job queue tasarla.

@@ -11,9 +11,21 @@ __all__ = [
     "AiReadinessResponse",
     "AskRequest",
     "AskResponse",
+    "ConversationCreate",
+    "ConversationDetailResponse",
+    "ConversationListResponse",
+    "ConversationResponse",
     "DocumentListResponse",
     "DocumentResponse",
+    "MessageResponse",
     "RetrievedChunkResponse",
     "SemanticSearchRequest",
     "SemanticSearchResponse",
 ]
+from app.schemas.conversation import (
+    ConversationCreate,
+    ConversationDetailResponse,
+    ConversationListResponse,
+    ConversationResponse,
+    MessageResponse,
+)

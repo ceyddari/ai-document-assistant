@@ -42,6 +42,7 @@ __all__ = [
     "NO_RELEVANT_SOURCE_ANSWER",
     "AiReadiness",
     "AiReadinessError",
+    "ConversationNotFoundError",
     "DocumentNotFoundError",
     "DocumentProcessingError",
     "DocumentTooLargeError",
@@ -62,8 +63,11 @@ __all__ = [
     "build_user_prompt",
     "check_ai_readiness",
     "chunk_pages",
+    "create_conversation",
     "create_document",
+    "get_conversation_with_messages",
     "get_document_by_id",
+    "list_conversations",
     "list_documents",
     "parse_pdf",
     "process_document",
@@ -73,4 +77,10 @@ from app.services.ai_readiness_service import (
     AiReadiness,
     AiReadinessError,
     check_ai_readiness,
+)
+from app.services.conversation_service import (
+    ConversationNotFoundError,
+    create_conversation,
+    get_conversation_with_messages,
+    list_conversations,
 )
