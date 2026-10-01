@@ -4,7 +4,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Document, DocumentChunk, DocumentStatus
+from app.models import Document, DocumentChunk, DocumentStatus, Organization
+from app.services.document_service import OrganizationNotFoundError
 from app.services.embedding_service import EmbeddingService
 
 
@@ -25,12 +26,21 @@ async def search_relevant_chunks(
     session: AsyncSession,
     embedding_service: EmbeddingService,
     limit: int = 5,
+    minimum_similarity: float = 0.35,
 ) -> list[RetrievedChunk]:
     if not query.strip():
         raise ValueError("Soru boş olamaz.")
 
     if not 1 <= limit <= 20:
         raise ValueError("Sonuç limiti 1 ile 20 arasında olmalıdır.")
+
+    if not 0 <= minimum_similarity <= 1:
+        raise ValueError("Minimum benzerlik 0 ile 1 arasında olmalıdır.")
+
+    organization = await session.get(Organization, organization_id)
+
+    if organization is None:
+        raise OrganizationNotFoundError("Organizasyon bulunamadı.")
 
     query_embedding = await embedding_service.embed_query(query)
 
@@ -51,6 +61,7 @@ async def search_relevant_chunks(
         .where(
             DocumentChunk.organization_id == organization_id,
             Document.status == DocumentStatus.READY,
+            distance <= 1.0 - minimum_similarity,
         )
         .order_by(distance)
         .limit(limit)

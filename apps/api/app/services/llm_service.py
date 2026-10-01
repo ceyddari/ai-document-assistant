@@ -1,3 +1,5 @@
+import asyncio
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 
@@ -15,6 +17,7 @@ class LlmService:
             base_url=settings.ollama_base_url,
             temperature=0,
         )
+        self._timeout_seconds = settings.ollama_timeout_seconds
 
     async def generate_answer(
         self,
@@ -23,12 +26,15 @@ class LlmService:
         user_prompt: str,
     ) -> str:
         try:
-            response = await self._model.ainvoke(
-                [
-                    SystemMessage(content=system_prompt),
-                    HumanMessage(content=user_prompt),
-                ]
-            )
+            async with asyncio.timeout(self._timeout_seconds):
+                response = await self._model.ainvoke(
+                    [
+                        SystemMessage(content=system_prompt),
+                        HumanMessage(content=user_prompt),
+                    ]
+                )
+        except TimeoutError as error:
+            raise LlmServiceError("Dil modeli isteği zaman aşımına uğradı.") from error
         except Exception as error:
             raise LlmServiceError("Dil modeli cevap üretemedi.") from error
 

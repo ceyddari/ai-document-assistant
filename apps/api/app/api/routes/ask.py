@@ -10,6 +10,7 @@ from app.services import (
     EmbeddingServiceError,
     LlmService,
     LlmServiceError,
+    OrganizationNotFoundError,
     answer_question,
 )
 
@@ -37,7 +38,13 @@ async def ask_question(
             embedding_service=embedding_service,
             llm_service=llm_service,
             limit=request.limit,
+            minimum_similarity=settings.retrieval_min_similarity,
         )
+    except OrganizationNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
     except EmbeddingServiceError as error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

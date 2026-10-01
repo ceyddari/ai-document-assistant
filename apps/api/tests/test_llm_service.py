@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -69,6 +70,27 @@ async def test_generate_answer_wraps_model_error(
     service = LlmService(settings=settings)
 
     with pytest.raises(LlmServiceError, match="cevap üretemedi"):
+        await service.generate_answer(
+            system_prompt="Sistem talimatı",
+            user_prompt="Kullanıcı sorusu",
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_answer_wraps_timeout(
+    settings: Settings,
+    model: MagicMock,
+) -> None:
+    settings.ollama_timeout_seconds = 0.001
+
+    async def slow_response(_: object) -> MagicMock:
+        await asyncio.sleep(0.05)
+        return MagicMock(content="Geç cevap")
+
+    model.ainvoke.side_effect = slow_response
+    service = LlmService(settings=settings)
+
+    with pytest.raises(LlmServiceError, match="zaman aşımına uğradı"):
         await service.generate_answer(
             system_prompt="Sistem talimatı",
             user_prompt="Kullanıcı sorusu",

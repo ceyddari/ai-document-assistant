@@ -58,6 +58,7 @@ async def test_answer_question_retrieves_sources_and_calls_llm() -> None:
             embedding_service=embedding_service,
             llm_service=llm_service,
             limit=4,
+            minimum_similarity=0.4,
         )
 
     assert result.answer == "İzin talebi sistemden oluşturulur. [Kaynak 1]"
@@ -68,6 +69,7 @@ async def test_answer_question_retrieves_sources_and_calls_llm() -> None:
         session=session,
         embedding_service=embedding_service,
         limit=4,
+        minimum_similarity=0.4,
     )
     llm_service.generate_answer.assert_awaited_once()
 

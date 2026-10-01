@@ -4,8 +4,12 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import EMBEDDING_DIMENSIONS, DocumentChunk
-from app.services import RetrievedChunk, search_relevant_chunks
+from app.models import EMBEDDING_DIMENSIONS, DocumentChunk, Organization
+from app.services import (
+    OrganizationNotFoundError,
+    RetrievedChunk,
+    search_relevant_chunks,
+)
 
 
 @pytest.mark.asyncio
@@ -31,6 +35,7 @@ async def test_search_relevant_chunks_returns_results() -> None:
     ]
 
     session = AsyncMock(spec=AsyncSession)
+    session.get.return_value = MagicMock(spec=Organization)
     session.execute.return_value = result
 
     chunks = await search_relevant_chunks(
@@ -39,6 +44,7 @@ async def test_search_relevant_chunks_returns_results() -> None:
         session=session,
         embedding_service=embedding_service,
         limit=5,
+        minimum_similarity=0.35,
     )
 
     embedding_service.embed_query.assert_awaited_once_with(query)
@@ -67,6 +73,7 @@ async def test_search_relevant_chunks_returns_empty_list_when_no_match() -> None
     result.all.return_value = []
 
     session = AsyncMock(spec=AsyncSession)
+    session.get.return_value = MagicMock(spec=Organization)
     session.execute.return_value = result
 
     chunks = await search_relevant_chunks(
@@ -109,3 +116,41 @@ async def test_search_relevant_chunks_rejects_invalid_input(
 
     embedding_service.embed_query.assert_not_awaited()
     session.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_search_relevant_chunks_rejects_unknown_organization() -> None:
+    session = AsyncMock(spec=AsyncSession)
+    session.get.return_value = None
+    embedding_service = MagicMock()
+    embedding_service.embed_query = AsyncMock()
+
+    with pytest.raises(OrganizationNotFoundError, match="Organizasyon bulunamadı"):
+        await search_relevant_chunks(
+            organization_id=uuid4(),
+            query="Yıllık izin nasıl alınır?",
+            session=session,
+            embedding_service=embedding_service,
+        )
+
+    embedding_service.embed_query.assert_not_awaited()
+    session.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_search_relevant_chunks_rejects_invalid_similarity() -> None:
+    session = AsyncMock(spec=AsyncSession)
+    embedding_service = MagicMock()
+    embedding_service.embed_query = AsyncMock()
+
+    with pytest.raises(ValueError, match="Minimum benzerlik"):
+        await search_relevant_chunks(
+            organization_id=uuid4(),
+            query="Yıllık izin nasıl alınır?",
+            session=session,
+            embedding_service=embedding_service,
+            minimum_similarity=1.1,
+        )
+
+    session.get.assert_not_awaited()
+    embedding_service.embed_query.assert_not_awaited()

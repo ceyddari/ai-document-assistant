@@ -12,6 +12,7 @@ from app.schemas import (
 from app.services import (
     EmbeddingService,
     EmbeddingServiceError,
+    OrganizationNotFoundError,
     search_relevant_chunks,
 )
 
@@ -40,7 +41,14 @@ async def semantic_search(
             session=session,
             embedding_service=embedding_service,
             limit=request.limit,
+            minimum_similarity=settings.retrieval_min_similarity,
         )
+
+    except OrganizationNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
 
     except EmbeddingServiceError as error:
         raise HTTPException(

@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -150,3 +151,21 @@ async def test_embed_documents_wraps_model_error(
         match="Doküman embedding'leri üretilemedi",
     ):
         await embedding_service.embed_documents(["Yıllık izin prosedürü."])
+
+
+@pytest.mark.asyncio
+async def test_embed_query_wraps_timeout(
+    settings: Settings,
+    embedding_model: MagicMock,
+) -> None:
+    settings.ollama_timeout_seconds = 0.001
+
+    async def slow_embedding(_: str) -> list[float]:
+        await asyncio.sleep(0.05)
+        return [0.1] * EMBEDDING_DIMENSIONS
+
+    embedding_model.aembed_query.side_effect = slow_embedding
+    service = EmbeddingService(settings=settings)
+
+    with pytest.raises(EmbeddingServiceError, match="zaman aşımına uğradı"):
+        await service.embed_query("Yıllık izin nasıl alınır?")

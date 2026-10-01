@@ -1,3 +1,5 @@
+import asyncio
+
 from langchain_ollama import OllamaEmbeddings
 
 from app.core.config import Settings
@@ -22,6 +24,7 @@ class EmbeddingService:
             model=settings.ollama_embedding_model,
             base_url=settings.ollama_base_url,
         )
+        self._timeout_seconds = settings.ollama_timeout_seconds
 
     async def embed_documents(
         self,
@@ -31,7 +34,10 @@ class EmbeddingService:
             return []
 
         try:
-            embeddings = await self._model.aembed_documents(texts)
+            async with asyncio.timeout(self._timeout_seconds):
+                embeddings = await self._model.aembed_documents(texts)
+        except TimeoutError as error:
+            raise EmbeddingServiceError("Doküman embedding isteği zaman aşımına uğradı.") from error
         except Exception as error:
             raise EmbeddingServiceError("Doküman embedding'leri üretilemedi.") from error
 
@@ -50,7 +56,10 @@ class EmbeddingService:
             raise ValueError("Soru boş olamaz.")
 
         try:
-            embedding = await self._model.aembed_query(query)
+            async with asyncio.timeout(self._timeout_seconds):
+                embedding = await self._model.aembed_query(query)
+        except TimeoutError as error:
+            raise EmbeddingServiceError("Soru embedding isteği zaman aşımına uğradı.") from error
         except Exception as error:
             raise EmbeddingServiceError("Soru embedding'i üretilemedi.") from error
 

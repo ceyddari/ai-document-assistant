@@ -13,6 +13,7 @@ from app.db.session import get_db_session
 from app.main import app
 from app.services import (
     EmbeddingServiceError,
+    OrganizationNotFoundError,
     RetrievedChunk,
 )
 
@@ -131,6 +132,7 @@ def test_semantic_search_returns_retrieved_chunks(
         session=db_session,
         embedding_service=embedding_service,
         limit=5,
+        minimum_similarity=0.35,
     )
 
 
@@ -158,14 +160,21 @@ def test_semantic_search_rejects_invalid_request(
 
 
 @pytest.mark.parametrize(
-    ("service_error", "expected_detail"),
+    ("service_error", "expected_status", "expected_detail"),
     [
         (
+            OrganizationNotFoundError("Organizasyon bulunamadı."),
+            404,
+            "Organizasyon bulunamadı.",
+        ),
+        (
             EmbeddingServiceError("Ollama unavailable"),
+            503,
             "Embedding servisine şu anda erişilemiyor.",
         ),
         (
             SQLAlchemyError("Database unavailable"),
+            503,
             "Semantik arama şu anda gerçekleştirilemiyor.",
         ),
     ],
@@ -175,6 +184,7 @@ def test_semantic_search_maps_service_errors(
     embedding_service: MagicMock,
     search_relevant_chunks_mock: AsyncMock,
     service_error: Exception,
+    expected_status: int,
     expected_detail: str,
 ) -> None:
     search_relevant_chunks_mock.side_effect = service_error
@@ -187,5 +197,5 @@ def test_semantic_search_maps_service_errors(
         },
     )
 
-    assert response.status_code == 503
+    assert response.status_code == expected_status
     assert response.json() == {"detail": expected_detail}

@@ -60,6 +60,7 @@ async def answer_question(
     embedding_service: EmbeddingService,
     llm_service: LlmService,
     limit: int = 5,
+    minimum_similarity: float = 0.35,
 ) -> RagAnswer:
     sources = await search_relevant_chunks(
         organization_id=organization_id,
@@ -67,6 +68,7 @@ async def answer_question(
         session=session,
         embedding_service=embedding_service,
         limit=limit,
+        minimum_similarity=minimum_similarity,
     )
 
     if not sources:

@@ -13,6 +13,7 @@ from app.main import app
 from app.services import (
     EmbeddingServiceError,
     LlmServiceError,
+    OrganizationNotFoundError,
     RagAnswer,
     RetrievedChunk,
 )
@@ -108,22 +109,31 @@ def test_ask_returns_answer_with_sources(
         embedding_service=services[0],
         llm_service=services[1],
         limit=4,
+        minimum_similarity=0.35,
     )
 
 
 @pytest.mark.parametrize(
-    ("service_error", "expected_detail"),
+    ("service_error", "expected_status", "expected_detail"),
     [
         (
+            OrganizationNotFoundError("Organizasyon bulunamadı."),
+            404,
+            "Organizasyon bulunamadı.",
+        ),
+        (
             EmbeddingServiceError("Ollama unavailable"),
+            503,
             "Embedding servisine şu anda erişilemiyor.",
         ),
         (
             LlmServiceError("Ollama unavailable"),
+            503,
             "Dil modeli servisine şu anda erişilemiyor.",
         ),
         (
             SQLAlchemyError("Database unavailable"),
+            503,
             "Soru şu anda yanıtlanamıyor.",
         ),
     ],
@@ -133,6 +143,7 @@ def test_ask_maps_service_errors(
     services: tuple[MagicMock, MagicMock],
     answer_question_mock: AsyncMock,
     service_error: Exception,
+    expected_status: int,
     expected_detail: str,
 ) -> None:
     answer_question_mock.side_effect = service_error
@@ -142,7 +153,7 @@ def test_ask_maps_service_errors(
         json={"question": "Yıllık izin nasıl alınır?"},
     )
 
-    assert response.status_code == 503
+    assert response.status_code == expected_status
     assert response.json() == {"detail": expected_detail}
 
 

@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_embedding_model: str = "bge-m3"
     ollama_llm_model: str = "qwen3:8b"
+    ollama_timeout_seconds: float = Field(default=120, gt=0)
+    retrieval_min_similarity: float = Field(default=0.35, ge=0, le=1)
 
     storage_directory: Path = Path("storage/documents")
     max_upload_size_mb: int = 10
