@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_embedding_model: str = "bge-m3"
+    ollama_llm_model: str = "qwen3:8b"
 
     storage_directory: Path = Path("storage/documents")
     max_upload_size_mb: int = 10

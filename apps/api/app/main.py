@@ -3,7 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.dependencies import DatabaseSession
-from app.api.routes import documents_router, search_router
+from app.api.routes import ask_router, documents_router, search_router
 
 app = FastAPI(
     title="AI Document Assistant API",
@@ -13,6 +13,7 @@ app = FastAPI(
 
 app.include_router(documents_router)
 app.include_router(search_router)
+app.include_router(ask_router)
 
 
 @app.get("/health", tags=["system"])

@@ -12,6 +12,7 @@ dependencies = [
     "alembic",
     "asyncpg",
     "fastapi",
+    "langchain-core",
     "langchain-ollama",
     "langchain-text-splitters",
     "pgvector",

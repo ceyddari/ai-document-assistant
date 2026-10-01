@@ -5,6 +5,9 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-user-temp/
+.test-temp/
+.codex-test-temp/
 .mypy_cache/
 .ruff_cache/
 
