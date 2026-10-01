@@ -5,8 +5,10 @@ from app.schemas.retrieval import (
     SemanticSearchRequest,
     SemanticSearchResponse,
 )
+from app.schemas.system import AiReadinessResponse
 
 __all__ = [
+    "AiReadinessResponse",
     "AskRequest",
     "AskResponse",
     "DocumentListResponse",

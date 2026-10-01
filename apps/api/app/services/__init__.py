@@ -40,6 +40,8 @@ from app.services.text_chunker import (
 
 __all__ = [
     "NO_RELEVANT_SOURCE_ANSWER",
+    "AiReadiness",
+    "AiReadinessError",
     "DocumentNotFoundError",
     "DocumentProcessingError",
     "DocumentTooLargeError",
@@ -58,6 +60,7 @@ __all__ = [
     "TextChunk",
     "answer_question",
     "build_user_prompt",
+    "check_ai_readiness",
     "chunk_pages",
     "create_document",
     "get_document_by_id",
@@ -66,3 +69,8 @@ __all__ = [
     "process_document",
     "search_relevant_chunks",
 ]
+from app.services.ai_readiness_service import (
+    AiReadiness,
+    AiReadinessError,
+    check_ai_readiness,
+)

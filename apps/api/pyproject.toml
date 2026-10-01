@@ -12,6 +12,7 @@ dependencies = [
     "alembic",
     "asyncpg",
     "fastapi",
+    "httpx",
     "langchain-core",
     "langchain-ollama",
     "langchain-text-splitters",
