@@ -78,9 +78,11 @@ Swagger: `http://127.0.0.1:8000/docs`
 → 353c369e8bd2  create organizations table
 → 49252f5931b1  create documents table
 → da06f6e62641  create document_chunks table
+→ 7c2a4f8d1e90  create conversation tables
 ```
 
-Ana tablolar `organizations`, `documents` ve `document_chunks` tablolarıdır.
+Ana tablolar `organizations`, `documents`, `document_chunks`, `conversations`,
+`messages` ve `message_sources` tablolarıdır.
 Retrieval sorgularında `organization_id` filtresi güvenlik sınırıdır.
 
 ## Ana katmanlar
@@ -115,7 +117,7 @@ python -m pytest apps/api/tests -v -p no:cacheprovider --basetemp .codex-test-te
 ## Bilinen eksikler
 
 - Authentication/authorization yok; organization ID path'ten geliyor.
-- Conversation/message tabloları ve geçmiş yönetimi yok.
+- Conversation/message tabloları hazır; servis ve HTTP geçmiş yönetimi henüz yok.
 - `BackgroundTasks` kalıcı job queue değildir.
 - OCR ve gelişmiş PDF güvenlik kontrolleri yok.
 - Local storage abstraction arkasında değil.
@@ -125,14 +127,13 @@ python -m pytest apps/api/tests -v -p no:cacheprovider --basetemp .codex-test-te
 
 ## Önerilen sonraki sıra
 
-1. Conversation ve message veri modelini tasarla.
-2. Migration ve model testlerini ekle.
-3. Ask endpoint'ini conversation geçmişiyle genişlet.
-4. Authentication ve organization membership güvenliğini ekle.
-5. React + TypeScript + Vite frontend'i başlat.
-6. Kalıcı worker/job queue tasarla.
-7. Evaluation setiyle retrieval ve cevap kalitesini ölç.
-8. Observability ve production hardening ekle.
+1. Conversation create/list/detail servis ve endpoint'lerini ekle.
+2. Ask endpoint'ini conversation geçmişiyle genişlet.
+3. Authentication ve organization membership güvenliğini ekle.
+4. React + TypeScript + Vite frontend'i başlat.
+5. Kalıcı worker/job queue tasarla.
+6. Evaluation setiyle retrieval ve cevap kalitesini ölç.
+7. Observability ve production hardening ekle.
 
 Her feature sonunda Ruff, pytest, gerekiyorsa gerçek DB/Ollama kontrolü ve
 `git status --short` çalıştırılmalıdır. Testler geçmeden commit atılmamalıdır.
