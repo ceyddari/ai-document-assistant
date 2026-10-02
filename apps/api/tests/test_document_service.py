@@ -12,12 +12,14 @@ from app.core.config import Settings
 from app.models import Document, DocumentStatus, Organization
 from app.services import (
     DocumentNotFoundError,
+    DocumentNotRetryableError,
     DocumentTooLargeError,
     InvalidPdfError,
     OrganizationNotFoundError,
     create_document,
     get_document_by_id,
     list_documents,
+    prepare_document_retry,
 )
 
 
@@ -305,3 +307,44 @@ async def test_get_document_by_id_rejects_missing_or_other_organization_document
         )
 
     db_session.scalar.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_prepare_document_retry_resets_failed_document(
+    db_session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    document = build_document(organization_id=organization_id, filename="policy.pdf")
+    document.status = DocumentStatus.FAILED
+    document.error_message = "Embedding failed"
+    db_session.scalar.return_value = document
+
+    result = await prepare_document_retry(
+        organization_id=organization_id,
+        document_id=document.id,
+        session=db_session,
+    )
+
+    assert result is document
+    assert document.status == DocumentStatus.PENDING
+    assert document.error_message is None
+    db_session.commit.assert_awaited_once()
+    db_session.refresh.assert_awaited_once_with(document)
+
+
+@pytest.mark.asyncio
+async def test_prepare_document_retry_rejects_active_document(
+    db_session: AsyncMock,
+) -> None:
+    document = build_document(organization_id=uuid4(), filename="policy.pdf")
+    document.status = DocumentStatus.PROCESSING
+    db_session.scalar.return_value = document
+
+    with pytest.raises(DocumentNotRetryableError, match="Yalnızca işlenemeyen"):
+        await prepare_document_retry(
+            organization_id=document.organization_id,
+            document_id=document.id,
+            session=db_session,
+        )
+
+    db_session.commit.assert_not_awaited()

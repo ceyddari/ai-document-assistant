@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     ollama_embedding_model: str = "bge-m3"
     ollama_llm_model: str = "qwen3:8b"
     ollama_timeout_seconds: float = Field(default=120, gt=0)
+    ollama_embedding_batch_size: int = Field(default=16, ge=1, le=256)
+    ollama_embedding_max_retries: int = Field(default=3, ge=0, le=10)
+    ollama_embedding_retry_delay_seconds: float = Field(default=1, ge=0, le=60)
     retrieval_min_similarity: float = Field(default=0.35, ge=0, le=1)
 
     storage_directory: Path = Path("storage/documents")

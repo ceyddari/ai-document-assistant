@@ -60,6 +60,9 @@ Dayanıklılık ayarları:
 
 ```env
 OLLAMA_TIMEOUT_SECONDS=120
+OLLAMA_EMBEDDING_BATCH_SIZE=16
+OLLAMA_EMBEDDING_MAX_RETRIES=3
+OLLAMA_EMBEDDING_RETRY_DELAY_SECONDS=1
 RETRIEVAL_MIN_SIMILARITY=0.35
 ```
 
@@ -74,6 +77,7 @@ hataları güvenli `503` döndürür.
 - `POST /organizations/{organization_id}/documents`: PDF yükleme
 - `GET /organizations/{organization_id}/documents`: sayfalı liste
 - `GET /organizations/{organization_id}/documents/{document_id}`: detay
+- `POST /organizations/{organization_id}/documents/{document_id}/retry`: başarısız dokümanı yeniden işle
 - `POST /organizations/{organization_id}/search`: semantik kaynak araması
 - `POST /organizations/{organization_id}/ask`: kaynaklı RAG cevabı
 - `POST /organizations/{organization_id}/conversations`: conversation oluşturma

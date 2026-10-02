@@ -42,6 +42,12 @@ export const api = {
     body.append("file", file);
     return request<DocumentItem>(`/organizations/${organizationId}/documents`, { method: "POST", body }, token);
   },
+  retryDocument: (organizationId: string, documentId: string, token: string) =>
+    request<DocumentItem>(
+      `/organizations/${organizationId}/documents/${documentId}/retry`,
+      { method: "POST" },
+      token,
+    ),
   conversations: (organizationId: string, token: string) =>
     request<{ items: Conversation[] }>(`/organizations/${organizationId}/conversations`, {}, token),
   conversation: (organizationId: string, conversationId: string, token: string) =>

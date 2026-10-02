@@ -9,6 +9,7 @@ modellerle çalışan çok kiracılı bir RAG uygulaması.
 - Sayfa numarasını koruyan PDF metin çıkarma
 - LangChain recursive text chunking
 - Ollama `bge-m3` ile 1024 boyutlu embedding
+- Uzun dokümanlar için batch embedding, exponential retry ve yeniden işleme
 - PostgreSQL 17 + pgvector cosine similarity araması
 - Organizasyon bazlı veri izolasyonu
 - Arka planda doküman indeksleme ve durum yönetimi
@@ -78,6 +79,7 @@ Frontend: <http://127.0.0.1:5173>
 | `POST` | `/organizations/{organization_id}/documents` | PDF yükleme |
 | `GET` | `/organizations/{organization_id}/documents` | Doküman listesi |
 | `GET` | `/organizations/{organization_id}/documents/{document_id}` | Doküman detayı |
+| `POST` | `/organizations/{organization_id}/documents/{document_id}/retry` | Başarısız dokümanı yeniden işle |
 | `POST` | `/organizations/{organization_id}/search` | Semantik chunk araması |
 | `POST` | `/organizations/{organization_id}/ask` | Kaynaklı RAG cevabı |
 | `POST` | `/organizations/{organization_id}/conversations` | Conversation oluşturma |

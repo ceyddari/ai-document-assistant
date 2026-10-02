@@ -4,12 +4,14 @@ from app.services.document_processing_service import (
 )
 from app.services.document_service import (
     DocumentNotFoundError,
+    DocumentNotRetryableError,
     DocumentTooLargeError,
     InvalidPdfError,
     OrganizationNotFoundError,
     create_document,
     get_document_by_id,
     list_documents,
+    prepare_document_retry,
 )
 from app.services.embedding_service import (
     EmbeddingDimensionError,
@@ -44,6 +46,7 @@ __all__ = [
     "AiReadinessError",
     "ConversationNotFoundError",
     "DocumentNotFoundError",
+    "DocumentNotRetryableError",
     "DocumentProcessingError",
     "DocumentTooLargeError",
     "EmbeddingDimensionError",
@@ -72,6 +75,7 @@ __all__ = [
     "list_documents",
     "parse_pdf",
     "persist_rag_exchange",
+    "prepare_document_retry",
     "process_document",
     "search_relevant_chunks",
 ]

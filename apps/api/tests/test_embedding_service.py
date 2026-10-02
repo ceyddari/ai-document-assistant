@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from app.core.config import Settings
@@ -23,6 +24,7 @@ def settings() -> Settings:
         postgres_port=5432,
         ollama_base_url="http://localhost:11434",
         ollama_embedding_model="bge-m3",
+        ollama_embedding_retry_delay_seconds=0,
     )
 
 
@@ -75,6 +77,53 @@ async def test_embed_documents_returns_empty_list_without_calling_model(
 
     assert embeddings == []
     embedding_model.aembed_documents.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_embed_documents_processes_large_input_in_ordered_batches(
+    settings: Settings,
+    embedding_model: MagicMock,
+) -> None:
+    settings.ollama_embedding_batch_size = 2
+    service = EmbeddingService(settings=settings)
+    texts = ["Bir", "İki", "Üç", "Dört", "Beş"]
+    expected = [[float(index)] * EMBEDDING_DIMENSIONS for index in range(5)]
+    embedding_model.aembed_documents.side_effect = [
+        expected[0:2],
+        expected[2:4],
+        expected[4:5],
+    ]
+
+    result = await service.embed_documents(texts)
+
+    assert result == expected
+    assert [call.args[0] for call in embedding_model.aembed_documents.await_args_list] == [
+        texts[0:2],
+        texts[2:4],
+        texts[4:5],
+    ]
+
+
+@pytest.mark.asyncio
+async def test_embed_documents_retries_only_failed_batch(
+    settings: Settings,
+    embedding_model: MagicMock,
+) -> None:
+    settings.ollama_embedding_batch_size = 2
+    settings.ollama_embedding_max_retries = 2
+    service = EmbeddingService(settings=settings)
+    first_batch = [[0.1] * EMBEDDING_DIMENSIONS, [0.2] * EMBEDDING_DIMENSIONS]
+    second_batch = [[0.3] * EMBEDDING_DIMENSIONS]
+    embedding_model.aembed_documents.side_effect = [
+        first_batch,
+        httpx.ConnectError("temporary Ollama error"),
+        second_batch,
+    ]
+
+    result = await service.embed_documents(["Bir", "İki", "Üç"])
+
+    assert result == [*first_batch, *second_batch]
+    assert embedding_model.aembed_documents.await_count == 3
 
 
 @pytest.mark.asyncio

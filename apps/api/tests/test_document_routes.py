@@ -15,6 +15,7 @@ from app.main import app
 from app.models import Document, DocumentStatus
 from app.services import (
     DocumentNotFoundError,
+    DocumentNotRetryableError,
     DocumentTooLargeError,
     InvalidPdfError,
     OrganizationNotFoundError,
@@ -88,6 +89,13 @@ def get_document_by_id_mock(
         mock,
     )
 
+    return mock
+
+
+@pytest.fixture
+def prepare_document_retry_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    mock = AsyncMock()
+    monkeypatch.setattr("app.api.routes.documents.prepare_document_retry", mock)
     return mock
 
 
@@ -413,3 +421,51 @@ def test_get_document_maps_service_errors_to_http_responses(
     assert response.json() == {
         "detail": expected_detail,
     }
+
+
+def test_retry_document_queues_failed_document(
+    client: TestClient,
+    db_session: AsyncMock,
+    prepare_document_retry_mock: AsyncMock,
+    process_document_in_background_mock: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    document = build_document(organization_id=organization_id, filename="policy.pdf")
+    document.status = DocumentStatus.PENDING
+    prepare_document_retry_mock.return_value = document
+
+    response = client.post(
+        f"/organizations/{organization_id}/documents/{document.id}/retry"
+    )
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "pending"
+    prepare_document_retry_mock.assert_awaited_once_with(
+        organization_id=organization_id,
+        document_id=document.id,
+        session=db_session,
+    )
+    process_document_in_background_mock.assert_awaited_once_with(document.id)
+
+
+@pytest.mark.parametrize(
+    ("service_error", "expected_status"),
+    [
+        (DocumentNotFoundError("Doküman bulunamadı."), 404),
+        (DocumentNotRetryableError("Yalnızca işlenemeyen dokümanlar yeniden işlenebilir."), 409),
+        (SQLAlchemyError("Database error"), 503),
+    ],
+)
+def test_retry_document_maps_service_errors(
+    client: TestClient,
+    prepare_document_retry_mock: AsyncMock,
+    service_error: Exception,
+    expected_status: int,
+) -> None:
+    prepare_document_retry_mock.side_effect = service_error
+
+    response = client.post(
+        f"/organizations/{uuid4()}/documents/{uuid4()}/retry"
+    )
+
+    assert response.status_code == expected_status

@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.models import Document, Organization
+from app.models import Document, DocumentStatus, Organization
 
 UPLOAD_CHUNK_SIZE = 1024 * 1024
 PDF_SIGNATURE = b"%PDF-"
@@ -28,6 +28,10 @@ class DocumentTooLargeError(Exception):
 
 
 class DocumentNotFoundError(Exception):
+    pass
+
+
+class DocumentNotRetryableError(Exception):
     pass
 
 
@@ -162,5 +166,42 @@ async def get_document_by_id(
 
     if document is None:
         raise DocumentNotFoundError("Doküman bulunamadı.")
+
+    return document
+
+
+async def prepare_document_retry(
+    *,
+    organization_id: UUID,
+    document_id: UUID,
+    session: AsyncSession,
+) -> Document:
+    statement = (
+        select(Document)
+        .where(
+            Document.id == document_id,
+            Document.organization_id == organization_id,
+        )
+        .with_for_update()
+    )
+    document = await session.scalar(statement)
+
+    if document is None:
+        raise DocumentNotFoundError("Doküman bulunamadı.")
+
+    if document.status != DocumentStatus.FAILED:
+        raise DocumentNotRetryableError(
+            "Yalnızca işlenemeyen dokümanlar yeniden işlenebilir."
+        )
+
+    document.status = DocumentStatus.PENDING
+    document.error_message = None
+
+    try:
+        await session.commit()
+        await session.refresh(document)
+    except SQLAlchemyError:
+        await session.rollback()
+        raise
 
     return document

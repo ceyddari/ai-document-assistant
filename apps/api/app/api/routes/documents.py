@@ -17,12 +17,14 @@ from app.api.dependencies import AppSettings, DatabaseSession, require_organizat
 from app.schemas import DocumentListResponse, DocumentResponse
 from app.services import (
     DocumentNotFoundError,
+    DocumentNotRetryableError,
     DocumentTooLargeError,
     InvalidPdfError,
     OrganizationNotFoundError,
     create_document,
     get_document_by_id,
     list_documents,
+    prepare_document_retry,
 )
 from app.tasks.document_tasks import process_document_in_background
 
@@ -31,6 +33,37 @@ router = APIRouter(
     tags=["documents"],
     dependencies=[Depends(require_organization_member)],
 )
+
+
+@router.post(
+    "/{document_id}/retry",
+    response_model=DocumentResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def retry_document_processing(
+    organization_id: UUID,
+    document_id: UUID,
+    background_tasks: BackgroundTasks,
+    session: DatabaseSession,
+) -> DocumentResponse:
+    try:
+        document = await prepare_document_retry(
+            organization_id=organization_id,
+            document_id=document_id,
+            session=session,
+        )
+        background_tasks.add_task(process_document_in_background, document.id)
+    except DocumentNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except DocumentNotRetryableError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Doküman şu anda yeniden işlenemiyor.",
+        ) from error
+
+    return DocumentResponse.model_validate(document)
 
 
 @router.get(
