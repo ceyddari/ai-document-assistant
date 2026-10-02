@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db_session
 from app.main import app
 from app.models import Conversation, Message, MessageRole
-from app.services import ConversationNotFoundError, OrganizationNotFoundError
+from app.services import ConversationNotFoundError, OrganizationNotFoundError, RetrievedChunk
+from app.services.conversation_service import MessageWithSources
 
 
 @pytest.fixture
@@ -105,13 +106,25 @@ def test_get_conversation_returns_messages(
         content="Yıllık izin nasıl alınır?",
         created_at=datetime.now(UTC),
     )
-    service_mocks["get"].return_value = (conversation, [message])
+    source = RetrievedChunk(
+        chunk_id=uuid4(),
+        document_id=uuid4(),
+        filename="policy.pdf",
+        page_number=1,
+        content="İzin talebi sistemden oluşturulur.",
+        similarity=0.8,
+    )
+    service_mocks["get"].return_value = (
+        conversation,
+        [MessageWithSources(message=message, sources=[source])],
+    )
 
     response = client.get(f"/organizations/{organization_id}/conversations/{conversation.id}")
 
     assert response.status_code == 200
     assert response.json()["messages"][0]["role"] == "user"
     assert response.json()["messages"][0]["content"] == message.content
+    assert response.json()["messages"][0]["sources"][0]["chunk_id"] == str(source.chunk_id)
 
 
 @pytest.mark.parametrize(

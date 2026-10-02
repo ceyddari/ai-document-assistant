@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Conversation, Message, MessageRole, Organization
+from app.models import Conversation, DocumentChunk, Message, MessageRole, Organization
 from app.services import (
     ConversationNotFoundError,
     OrganizationNotFoundError,
@@ -115,8 +115,11 @@ async def test_get_conversation_returns_chronological_messages(session: AsyncMoc
     ]
     scalar_result = MagicMock()
     scalar_result.all.return_value = messages
+    source_result = MagicMock()
+    source_result.all.return_value = []
     session.scalar.return_value = conversation
     session.scalars.return_value = scalar_result
+    session.execute.return_value = source_result
 
     result_conversation, result_messages = await get_conversation_with_messages(
         organization_id=organization_id,
@@ -125,7 +128,56 @@ async def test_get_conversation_returns_chronological_messages(session: AsyncMoc
     )
 
     assert result_conversation is conversation
-    assert result_messages == messages
+    assert [item.message for item in result_messages] == messages
+    assert result_messages[0].sources == []
+
+
+@pytest.mark.asyncio
+async def test_get_conversation_includes_assistant_message_sources(
+    session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    conversation_id = uuid4()
+    message = Message(
+        id=uuid4(),
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        role=MessageRole.ASSISTANT,
+        content="Kaynaklı cevap",
+        created_at=datetime.now(UTC),
+    )
+    conversation = Conversation(
+        id=conversation_id,
+        organization_id=organization_id,
+        title="İzin",
+    )
+    chunk = DocumentChunk(
+        id=uuid4(),
+        organization_id=organization_id,
+        document_id=uuid4(),
+        page_number=2,
+        chunk_index=0,
+        content="İzin talebi sistemden oluşturulur.",
+        embedding=[0.0] * 1024,
+    )
+    scalar_result = MagicMock()
+    scalar_result.all.return_value = [message]
+    source_result = MagicMock()
+    source_result.all.return_value = [(message.id, chunk, "policy.pdf", 0.81)]
+    session.scalar.return_value = conversation
+    session.scalars.return_value = scalar_result
+    session.execute.return_value = source_result
+
+    _, result_messages = await get_conversation_with_messages(
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        session=session,
+    )
+
+    assert result_messages[0].message is message
+    assert result_messages[0].sources[0].chunk_id == chunk.id
+    assert result_messages[0].sources[0].filename == "policy.pdf"
+    assert result_messages[0].sources[0].similarity == 0.81
 
 
 @pytest.mark.asyncio

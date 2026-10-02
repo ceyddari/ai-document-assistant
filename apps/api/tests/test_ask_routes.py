@@ -10,10 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.db.session import get_db_session
 from app.main import app
+from app.models import Conversation, Message
 from app.services import (
     EmbeddingServiceError,
     LlmServiceError,
     OrganizationNotFoundError,
+    PersistedExchange,
     RagAnswer,
     RetrievedChunk,
 )
@@ -61,6 +63,13 @@ def answer_question_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 @pytest.fixture
+def persist_rag_exchange_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    mock = AsyncMock()
+    monkeypatch.setattr("app.api.routes.ask.persist_rag_exchange", mock)
+    return mock
+
+
+@pytest.fixture
 def client(db_session: AsyncMock, settings: Settings) -> Iterator[TestClient]:
     async def override_db_session() -> AsyncIterator[AsyncSession]:
         yield db_session
@@ -79,6 +88,7 @@ def test_ask_returns_answer_with_sources(
     db_session: AsyncMock,
     services: tuple[MagicMock, MagicMock],
     answer_question_mock: AsyncMock,
+    persist_rag_exchange_mock: AsyncMock,
 ) -> None:
     organization_id = uuid4()
     source = RetrievedChunk(
@@ -93,15 +103,31 @@ def test_ask_returns_answer_with_sources(
         answer="İzin talebi sistemden oluşturulur. [Kaynak 1]",
         sources=[source],
     )
+    conversation = MagicMock(spec=Conversation)
+    conversation.id = uuid4()
+    user_message = MagicMock(spec=Message)
+    user_message.id = uuid4()
+    assistant_message = MagicMock(spec=Message)
+    assistant_message.id = uuid4()
+    persist_rag_exchange_mock.return_value = PersistedExchange(
+        conversation=conversation,
+        user_message=user_message,
+        assistant_message=assistant_message,
+    )
 
     response = client.post(
         f"/organizations/{organization_id}/ask",
-        json={"question": "  Yıllık izin nasıl alınır?  ", "limit": 4},
+        json={
+            "question": "  Yıllık izin nasıl alınır?  ",
+            "limit": 4,
+            "conversation_id": str(conversation.id),
+        },
     )
 
     assert response.status_code == 200
     assert response.json()["answer"] == "İzin talebi sistemden oluşturulur. [Kaynak 1]"
     assert response.json()["sources"][0]["chunk_id"] == str(source.chunk_id)
+    assert response.json()["conversation_id"] == str(conversation.id)
     answer_question_mock.assert_awaited_once_with(
         organization_id=organization_id,
         question="Yıllık izin nasıl alınır?",
@@ -110,6 +136,14 @@ def test_ask_returns_answer_with_sources(
         llm_service=services[1],
         limit=4,
         minimum_similarity=0.35,
+    )
+    persist_rag_exchange_mock.assert_awaited_once_with(
+        organization_id=organization_id,
+        conversation_id=conversation.id,
+        question="Yıllık izin nasıl alınır?",
+        answer="İzin talebi sistemden oluşturulur. [Kaynak 1]",
+        sources=[source],
+        session=db_session,
     )
 
 

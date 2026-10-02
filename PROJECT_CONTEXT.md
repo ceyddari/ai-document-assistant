@@ -1,6 +1,6 @@
 # AI Document Assistant — Güncel Proje Bağlamı
 
-> Son güncelleme: 1 Ekim 2026. Yeni bir sohbet bu dosyayı tamamen okumalı,
+> Son güncelleme: 2 Ekim 2026. Yeni bir sohbet bu dosyayı tamamen okumalı,
 > ardından bilgileri `git status`, commit geçmişi, kaynak kod ve testlerle
 > doğrulamalıdır. Kullanıcının değişiklikleri silinmemeli veya resetlenmemelidir.
 
@@ -72,6 +72,12 @@ hataları güvenli `503` döndürür.
 - `GET /organizations/{organization_id}/conversations`: sayfalı conversation listesi
 - `GET /organizations/{organization_id}/conversations/{conversation_id}`: mesajlı detay
 
+`/ask`, opsiyonel `conversation_id` kabul eder. Kimlik verilmezse sorudan başlık
+üreterek yeni conversation oluşturur; verilirse organizasyon sınırı içinde mevcut
+conversation'a user ve assistant mesajlarını ekler. Response conversation ve iki
+mesajın kimliklerini döndürür. Assistant mesajlarının kullanılan chunk kaynakları
+`message_sources` tablosuna kaydedilir ve conversation detayında döndürülür.
+
 Swagger: `http://127.0.0.1:8000/docs`
 
 ## Migration zinciri
@@ -120,7 +126,6 @@ python -m pytest apps/api/tests -v -p no:cacheprovider --basetemp .codex-test-te
 ## Bilinen eksikler
 
 - Authentication/authorization yok; organization ID path'ten geliyor.
-- Conversation create/list/detail API'leri hazır; `/ask` henüz mesajları kaydetmiyor.
 - `BackgroundTasks` kalıcı job queue değildir.
 - OCR ve gelişmiş PDF güvenlik kontrolleri yok.
 - Local storage abstraction arkasında değil.
@@ -130,13 +135,11 @@ python -m pytest apps/api/tests -v -p no:cacheprovider --basetemp .codex-test-te
 
 ## Önerilen sonraki sıra
 
-1. Ask endpoint'ini conversation geçmişiyle genişlet.
-2. Assistant mesaj kaynaklarını detay response'una ekle.
-3. Authentication ve organization membership güvenliğini ekle.
-4. React + TypeScript + Vite frontend'i başlat.
-5. Kalıcı worker/job queue tasarla.
-6. Evaluation setiyle retrieval ve cevap kalitesini ölç.
-7. Observability ve production hardening ekle.
+1. Authentication ve organization membership güvenliğini ekle.
+2. React + TypeScript + Vite frontend'i başlat.
+3. Kalıcı worker/job queue tasarla.
+4. Evaluation setiyle retrieval ve cevap kalitesini ölç.
+5. Observability ve production hardening ekle.
 
 Her feature sonunda Ruff, pytest, gerekiyorsa gerçek DB/Ollama kontrolü ve
 `git status --short` çalıştırılmalıdır. Testler geçmeden commit atılmamalıdır.

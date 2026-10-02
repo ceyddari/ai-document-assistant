@@ -1,16 +1,25 @@
+from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Conversation, Message, Organization
+from app.models import Conversation, Document, DocumentChunk, Message, MessageSource, Organization
 from app.services.document_service import OrganizationNotFoundError
+from app.services.retrieval_service import RetrievedChunk
 
 
 class ConversationNotFoundError(Exception):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class MessageWithSources:
+    message: Message
+    sources: list[RetrievedChunk]
 
 
 async def create_conversation(
@@ -75,7 +84,7 @@ async def get_conversation_with_messages(
     organization_id: UUID,
     conversation_id: UUID,
     session: AsyncSession,
-) -> tuple[Conversation, Sequence[Message]]:
+) -> tuple[Conversation, list[MessageWithSources]]:
     conversation_statement = select(Conversation).where(
         Conversation.id == conversation_id,
         Conversation.organization_id == organization_id,
@@ -93,5 +102,42 @@ async def get_conversation_with_messages(
         )
         .order_by(Message.created_at.asc(), Message.id.asc())
     )
-    messages = await session.scalars(messages_statement)
-    return conversation, messages.all()
+    messages = list((await session.scalars(messages_statement)).all())
+
+    if not messages:
+        return conversation, []
+
+    source_statement = (
+        select(
+            MessageSource.message_id,
+            DocumentChunk,
+            Document.original_filename,
+            MessageSource.similarity,
+        )
+        .join(DocumentChunk, DocumentChunk.id == MessageSource.chunk_id)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(
+            MessageSource.message_id.in_([message.id for message in messages]),
+            MessageSource.organization_id == organization_id,
+        )
+        .order_by(MessageSource.created_at.asc(), MessageSource.id.asc())
+    )
+    source_rows = (await session.execute(source_statement)).all()
+    sources_by_message: dict[UUID, list[RetrievedChunk]] = defaultdict(list)
+
+    for message_id, chunk, filename, similarity in source_rows:
+        sources_by_message[message_id].append(
+            RetrievedChunk(
+                chunk_id=chunk.id,
+                document_id=chunk.document_id,
+                filename=filename,
+                page_number=chunk.page_number,
+                content=chunk.content,
+                similarity=float(similarity),
+            )
+        )
+
+    return conversation, [
+        MessageWithSources(message=message, sources=sources_by_message[message.id])
+        for message in messages
+    ]

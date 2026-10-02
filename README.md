@@ -14,6 +14,8 @@ modellerle çalışan çok kiracılı bir RAG uygulaması.
 - Arka planda doküman indeksleme ve durum yönetimi
 - Ollama `qwen3:8b` ile kaynak-temelli cevap üretimi
 - Cevapla birlikte doküman, sayfa, chunk ve similarity kaynakları
+- Conversation oluşturma, listeleme ve mesajlı detay
+- `/ask` üzerinden yeni veya mevcut conversation'a mesaj ve kaynak kaydı
 - PostgreSQL ve AI readiness endpoint'leri
 
 ## Teknoloji yığını
@@ -62,13 +64,17 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET` | `/organizations/{organization_id}/documents/{document_id}` | Doküman detayı |
 | `POST` | `/organizations/{organization_id}/search` | Semantik chunk araması |
 | `POST` | `/organizations/{organization_id}/ask` | Kaynaklı RAG cevabı |
+| `POST` | `/organizations/{organization_id}/conversations` | Conversation oluşturma |
+| `GET` | `/organizations/{organization_id}/conversations` | Conversation listesi |
+| `GET` | `/organizations/{organization_id}/conversations/{conversation_id}` | Mesaj ve kaynak detayları |
 
 Örnek soru-cevap isteği:
 
 ```json
 {
   "question": "Sürpriz Kasa projesinin mimarisi nasıldır?",
-  "limit": 5
+  "limit": 5,
+  "conversation_id": null
 }
 ```
 
@@ -85,7 +91,6 @@ tutulur ve Git tarafından ignore edilir.
 
 ## Sonraki aşamalar
 
-- Conversation ve message kalıcılığı
 - Authentication ve organization yetkilendirmesi
 - React + TypeScript + Vite frontend
 - Kalıcı background worker/job queue

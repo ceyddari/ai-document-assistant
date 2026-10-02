@@ -56,6 +56,7 @@ __all__ = [
     "OrganizationNotFoundError",
     "ParsedPage",
     "PdfParsingError",
+    "PersistedExchange",
     "RagAnswer",
     "RetrievedChunk",
     "TextChunk",
@@ -70,6 +71,7 @@ __all__ = [
     "list_conversations",
     "list_documents",
     "parse_pdf",
+    "persist_rag_exchange",
     "process_document",
     "search_relevant_chunks",
 ]
@@ -84,3 +86,4 @@ from app.services.conversation_service import (
     get_conversation_with_messages,
     list_conversations,
 )
+from app.services.message_service import PersistedExchange, persist_rag_exchange

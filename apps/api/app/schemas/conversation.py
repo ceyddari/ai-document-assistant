@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from app.models import MessageRole
+from app.schemas.retrieval import RetrievedChunkResponse
 
 ConversationTitle = Annotated[
     str,
@@ -48,6 +49,7 @@ class MessageResponse(BaseModel):
     role: MessageRole
     content: str
     created_at: datetime
+    sources: list[RetrievedChunkResponse] = Field(default_factory=list)
 
 
 class ConversationDetailResponse(ConversationResponse):

@@ -11,6 +11,7 @@ from app.schemas import (
     ConversationListResponse,
     ConversationResponse,
     MessageResponse,
+    RetrievedChunkResponse,
 )
 from app.services import (
     ConversationNotFoundError,
@@ -93,5 +94,21 @@ async def get_conversation(
     response = ConversationResponse.model_validate(conversation)
     return ConversationDetailResponse(
         **response.model_dump(),
-        messages=[MessageResponse.model_validate(message) for message in messages],
+        messages=[
+            MessageResponse(
+                **MessageResponse.model_validate(item.message).model_dump(exclude={"sources"}),
+                sources=[
+                    RetrievedChunkResponse(
+                        chunk_id=source.chunk_id,
+                        document_id=source.document_id,
+                        filename=source.filename,
+                        page_number=source.page_number,
+                        content=source.content,
+                        similarity=source.similarity,
+                    )
+                    for source in item.sources
+                ],
+            )
+            for item in messages
+        ],
     )
