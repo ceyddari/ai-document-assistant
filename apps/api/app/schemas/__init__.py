@@ -17,11 +17,16 @@ __all__ = [
     "ConversationResponse",
     "DocumentListResponse",
     "DocumentResponse",
+    "LoginRequest",
     "MessageResponse",
+    "RegisterRequest",
     "RetrievedChunkResponse",
     "SemanticSearchRequest",
     "SemanticSearchResponse",
+    "TokenResponse",
+    "UserResponse",
 ]
+from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationDetailResponse,

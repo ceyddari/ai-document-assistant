@@ -1,10 +1,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.dependencies import DatabaseSession
+from app.api.dependencies import DatabaseSession, require_organization_member
 from app.schemas import (
     ConversationCreate,
     ConversationDetailResponse,
@@ -24,6 +24,7 @@ from app.services import (
 router = APIRouter(
     prefix="/organizations/{organization_id}/conversations",
     tags=["conversations"],
+    dependencies=[Depends(require_organization_member)],
 )
 
 

@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import (
     APIRouter,
     BackgroundTasks,
+    Depends,
     File,
     HTTPException,
     Query,
@@ -12,7 +13,7 @@ from fastapi import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.dependencies import AppSettings, DatabaseSession
+from app.api.dependencies import AppSettings, DatabaseSession, require_organization_member
 from app.schemas import DocumentListResponse, DocumentResponse
 from app.services import (
     DocumentNotFoundError,
@@ -28,6 +29,7 @@ from app.tasks.document_tasks import process_document_in_background
 router = APIRouter(
     prefix="/organizations/{organization_id}/documents",
     tags=["documents"],
+    dependencies=[Depends(require_organization_member)],
 )
 
 

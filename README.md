@@ -16,6 +16,8 @@ modellerle çalışan çok kiracılı bir RAG uygulaması.
 - Cevapla birlikte doküman, sayfa, chunk ve similarity kaynakları
 - Conversation oluşturma, listeleme ve mesajlı detay
 - `/ask` üzerinden yeni veya mevcut conversation'a mesaj ve kaynak kaydı
+- Kullanıcı kaydı, giriş ve PostgreSQL tabanlı bearer session token'ları
+- Organization membership ile tüm tenant endpoint'lerinde erişim kontrolü
 - PostgreSQL ve AI readiness endpoint'leri
 
 ## Teknoloji yığını
@@ -59,6 +61,9 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET` | `/health` | API process kontrolü |
 | `GET` | `/readiness` | PostgreSQL bağlantı kontrolü |
 | `GET` | `/ai/readiness` | Ollama ve gerekli model kontrolü |
+| `POST` | `/auth/register` | Kullanıcı ve organizasyon oluşturma |
+| `POST` | `/auth/login` | Bearer session token alma |
+| `GET` | `/auth/me` | Giriş yapan kullanıcı bilgisi |
 | `POST` | `/organizations/{organization_id}/documents` | PDF yükleme |
 | `GET` | `/organizations/{organization_id}/documents` | Doküman listesi |
 | `GET` | `/organizations/{organization_id}/documents/{document_id}` | Doküman detayı |
@@ -91,7 +96,7 @@ tutulur ve Git tarafından ignore edilir.
 
 ## Sonraki aşamalar
 
-- Authentication ve organization yetkilendirmesi
+- Üyelik davet/yönetimi ve session revoke
 - React + TypeScript + Vite frontend
 - Kalıcı background worker/job queue
 - OCR ve gelişmiş PDF güvenlik kontrolleri

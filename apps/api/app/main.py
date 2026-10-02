@@ -6,6 +6,7 @@ from app.api.dependencies import DatabaseSession
 from app.api.routes import (
     ai_router,
     ask_router,
+    auth_router,
     conversations_router,
     documents_router,
     search_router,
@@ -18,6 +19,7 @@ app = FastAPI(
 )
 
 app.include_router(documents_router)
+app.include_router(auth_router)
 app.include_router(search_router)
 app.include_router(ask_router)
 app.include_router(ai_router)

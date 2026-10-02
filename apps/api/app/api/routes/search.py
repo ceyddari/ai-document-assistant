@@ -1,9 +1,9 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.dependencies import AppSettings, DatabaseSession
+from app.api.dependencies import AppSettings, DatabaseSession, require_organization_member
 from app.schemas import (
     RetrievedChunkResponse,
     SemanticSearchRequest,
@@ -19,6 +19,7 @@ from app.services import (
 router = APIRouter(
     prefix="/organizations/{organization_id}/search",
     tags=["search"],
+    dependencies=[Depends(require_organization_member)],
 )
 
 
