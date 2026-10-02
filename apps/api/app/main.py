@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -11,11 +12,20 @@ from app.api.routes import (
     documents_router,
     search_router,
 )
+from app.core.config import get_settings
 
 app = FastAPI(
     title="AI Document Assistant API",
     description="Şirket içi dokümanlar üzerinde kaynaklı soru-cevap API'si",
     version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().allowed_cors_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(documents_router)

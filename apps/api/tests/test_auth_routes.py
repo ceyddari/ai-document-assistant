@@ -102,3 +102,17 @@ def test_register_returns_user_organization_and_token(
     assert response.status_code == 201
     assert response.json()["organization_id"] == str(organization.id)
     assert response.json()["access_token"] == token.value
+
+
+def test_register_requires_at_least_six_character_password(client: TestClient) -> None:
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "owner@example.com",
+            "password": "12345",
+            "organization_name": "Acme",
+            "organization_slug": "acme",
+        },
+    )
+
+    assert response.status_code == 422

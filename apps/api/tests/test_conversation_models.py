@@ -21,6 +21,10 @@ def test_message_model_supports_only_user_and_assistant_roles() -> None:
     assert table.c.organization_id.nullable is False
     assert table.c.conversation_id.nullable is False
     assert table.c.content.nullable is False
+    assert table.c.sequence.nullable is False
+    assert "uq_messages_conversation_id_sequence" in {
+        constraint.name for constraint in table.constraints
+    }
     assert set(table.c.role.type.enums) == {
         MessageRole.USER.value,
         MessageRole.ASSISTANT.value,

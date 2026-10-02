@@ -28,6 +28,14 @@ edilmemelidir.
 
 ## Tamamlanan akışlar
 
+### Frontend
+
+`apps/web` altında React + TypeScript + Vite uygulaması bulunur. Kayıt/giriş,
+session'ın tarayıcıda tutulması, organization seçimi, PDF yükleme/listeleme,
+conversation listesi ve kaynaklı soru-cevap akışları hazırdır. Varsayılan API
+adresi `http://127.0.0.1:8000`; `VITE_API_URL` ile değiştirilebilir. API,
+`CORS_ORIGINS` üzerinden izin verilen frontend origin'lerini sınırlar.
+
 ### Ingestion
 
 ```text
@@ -142,12 +150,12 @@ python -m pytest apps/api/tests -v -p no:cacheprovider --basetemp .codex-test-te
 - Local storage abstraction arkasında değil.
 - Retrieval eşiği evaluation setiyle kalibre edilmedi.
 - Rate limiting, structured logging, metrics ve tracing yok.
-- Frontend başlamadı.
+- Frontend için otomatik component/e2e testleri henüz yok.
 
 ## Önerilen sonraki sıra
 
-1. React + TypeScript + Vite frontend'i başlat.
-2. Üyelik davet/yönetimi ile logout/session revoke ekle.
+1. Üyelik davet/yönetimi ile logout/session revoke ekle.
+2. Frontend component/e2e testlerini ve session yenileme davranışını ekle.
 3. Kalıcı worker/job queue tasarla.
 4. Evaluation setiyle retrieval ve cevap kalitesini ölç.
 5. Observability ve production hardening ekle.

@@ -48,6 +48,7 @@ class MessageResponse(BaseModel):
     conversation_id: UUID
     role: MessageRole
     content: str
+    sequence: int
     created_at: datetime
     sources: list[RetrievedChunkResponse] = Field(default_factory=list)
 

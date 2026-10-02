@@ -21,6 +21,26 @@ class EmptyDocumentError(Exception):
     pass
 
 
+async def _mark_document_failed(
+    *,
+    document: Document,
+    session: AsyncSession,
+    error_message: str,
+) -> None:
+    await session.rollback()
+    document.status = DocumentStatus.FAILED
+    document.error_message = error_message
+
+    try:
+        await session.commit()
+        await session.refresh(document)
+    except SQLAlchemyError as database_error:
+        await session.rollback()
+        raise DocumentProcessingError(
+            "Doküman işleme hatası kaydedilemedi."
+        ) from database_error
+
+
 async def process_document(
     *,
     document: Document,
@@ -77,22 +97,21 @@ async def process_document(
         EmptyDocumentError,
         EmbeddingServiceError,
     ) as error:
-        await session.rollback()
-
-        document.status = DocumentStatus.FAILED
-        document.error_message = str(error)
-
-        try:
-            await session.commit()
-            await session.refresh(document)
-        except SQLAlchemyError as database_error:
-            await session.rollback()
-            raise DocumentProcessingError(
-                "Doküman işleme hatası kaydedilemedi."
-            ) from database_error
-
+        await _mark_document_failed(
+            document=document,
+            session=session,
+            error_message=str(error),
+        )
         raise DocumentProcessingError("Doküman işlenemedi.") from error
 
     except SQLAlchemyError as error:
         await session.rollback()
         raise DocumentProcessingError("Doküman durumu güncellenemedi.") from error
+
+    except Exception as error:
+        await _mark_document_failed(
+            document=document,
+            session=session,
+            error_message="Doküman işlenirken beklenmeyen bir hata oluştu.",
+        )
+        raise DocumentProcessingError("Doküman işlenemedi.") from error

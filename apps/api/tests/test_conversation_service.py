@@ -110,6 +110,7 @@ async def test_get_conversation_returns_chronological_messages(session: AsyncMoc
             conversation_id=conversation_id,
             role=MessageRole.USER,
             content="Soru",
+            sequence=1,
             created_at=timestamp,
         )
     ]
@@ -144,6 +145,7 @@ async def test_get_conversation_includes_assistant_message_sources(
         conversation_id=conversation_id,
         role=MessageRole.ASSISTANT,
         content="Kaynaklı cevap",
+        sequence=2,
         created_at=datetime.now(UTC),
     )
     conversation = Conversation(

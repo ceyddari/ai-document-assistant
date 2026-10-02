@@ -264,6 +264,33 @@ async def test_process_document_marks_document_as_failed_when_embedding_fails(
 
 
 @pytest.mark.asyncio
+async def test_process_document_does_not_leave_unexpected_errors_processing(
+    tmp_path: Path,
+    db_session: AsyncMock,
+    embedding_service: AsyncMock,
+) -> None:
+    document = build_document(tmp_path)
+
+    with (
+        patch(
+            "app.services.document_processing_service.parse_pdf",
+            side_effect=RuntimeError("unexpected parser failure"),
+        ),
+        pytest.raises(DocumentProcessingError, match="Doküman işlenemedi"),
+    ):
+        await process_document(
+            document=document,
+            session=db_session,
+            embedding_service=embedding_service,
+        )
+
+    assert document.status == DocumentStatus.FAILED
+    assert document.error_message == "Doküman işlenirken beklenmeyen bir hata oluştu."
+    assert db_session.commit.await_count == 2
+    db_session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_process_document_reports_database_error_when_processing_cannot_start(
     tmp_path: Path,
     db_session: AsyncMock,

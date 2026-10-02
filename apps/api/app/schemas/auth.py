@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 Email = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=320)]
-Password = Annotated[str, StringConstraints(min_length=12, max_length=128)]
+Password = Annotated[str, StringConstraints(min_length=6, max_length=128)]
 
 
 class RegisterRequest(BaseModel):

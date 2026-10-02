@@ -104,6 +104,7 @@ def test_get_conversation_returns_messages(
         conversation_id=conversation.id,
         role=MessageRole.USER,
         content="Yıllık izin nasıl alınır?",
+        sequence=1,
         created_at=datetime.now(UTC),
     )
     source = RetrievedChunk(
@@ -124,6 +125,7 @@ def test_get_conversation_returns_messages(
     assert response.status_code == 200
     assert response.json()["messages"][0]["role"] == "user"
     assert response.json()["messages"][0]["content"] == message.content
+    assert response.json()["messages"][0]["sequence"] == 1
     assert response.json()["messages"][0]["sources"][0]["chunk_id"] == str(source.chunk_id)
 
 

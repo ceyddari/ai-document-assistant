@@ -18,6 +18,7 @@ modellerle çalışan çok kiracılı bir RAG uygulaması.
 - `/ask` üzerinden yeni veya mevcut conversation'a mesaj ve kaynak kaydı
 - Kullanıcı kaydı, giriş ve PostgreSQL tabanlı bearer session token'ları
 - Organization membership ile tüm tenant endpoint'lerinde erişim kontrolü
+- React + TypeScript arayüzünde kayıt, giriş, doküman ve kaynaklı sohbet akışları
 - PostgreSQL ve AI readiness endpoint'leri
 
 ## Teknoloji yığını
@@ -29,6 +30,7 @@ modellerle çalışan çok kiracılı bir RAG uygulaması.
 - pypdf, LangChain text splitters
 - Pytest, pytest-asyncio, Ruff
 - Docker Compose
+- React 19, TypeScript, Vite
 
 ## Yerel kurulum
 
@@ -52,7 +54,16 @@ python -m alembic -c apps/api/alembic.ini upgrade head
 python -m uvicorn app.main:app --app-dir apps/api --reload
 ```
 
+İkinci bir terminalde frontend'i başlatın:
+
+```powershell
+cd apps/web
+npm install
+npm run dev
+```
+
 Swagger UI: <http://127.0.0.1:8000/docs>
+Frontend: <http://127.0.0.1:5173>
 
 ## Önemli endpoint'ler
 
@@ -89,6 +100,8 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 python -m ruff format --check apps/api
 python -m ruff check apps/api
 python -m pytest apps/api/tests -v
+cd apps/web
+npm run build
 ```
 
 Gerçek yüklenen PDF'ler `storage/documents/`, secret değerleri `.env` altında
@@ -97,7 +110,6 @@ tutulur ve Git tarafından ignore edilir.
 ## Sonraki aşamalar
 
 - Üyelik davet/yönetimi ve session revoke
-- React + TypeScript + Vite frontend
 - Kalıcı background worker/job queue
 - OCR ve gelişmiş PDF güvenlik kontrolleri
 - Gözlemlenebilirlik, rate limiting ve production dağıtımı

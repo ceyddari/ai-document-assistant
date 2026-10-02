@@ -100,7 +100,7 @@ async def get_conversation_with_messages(
             Message.conversation_id == conversation_id,
             Message.organization_id == organization_id,
         )
-        .order_by(Message.created_at.asc(), Message.id.asc())
+        .order_by(Message.sequence.asc())
     )
     messages = list((await session.scalars(messages_statement)).all())
 

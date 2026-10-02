@@ -49,6 +49,7 @@ async def test_persist_rag_exchange_creates_conversation_messages_and_sources(
                 message.id = uuid4()
 
     session.flush.side_effect = assign_ids
+    session.scalar.return_value = None
 
     result = await persist_rag_exchange(
         organization_id=organization_id,
@@ -61,7 +62,9 @@ async def test_persist_rag_exchange_creates_conversation_messages_and_sources(
 
     assert result.conversation.title == "Yıllık izin nasıl alınır?"
     assert result.user_message.role == MessageRole.USER
+    assert result.user_message.sequence == 1
     assert result.assistant_message.role == MessageRole.ASSISTANT
+    assert result.assistant_message.sequence == 2
     source_models = session.add_all.call_args_list[1].args[0]
     assert len(source_models) == 1
     assert isinstance(source_models[0], MessageSource)
@@ -81,7 +84,7 @@ async def test_persist_rag_exchange_appends_to_existing_conversation(
         organization_id=organization_id,
         title="İzin",
     )
-    session.scalar.return_value = conversation
+    session.scalar.side_effect = [conversation, 4]
 
     async def assign_message_ids() -> None:
         messages = session.add_all.call_args_list[0].args[0]
@@ -100,6 +103,8 @@ async def test_persist_rag_exchange_appends_to_existing_conversation(
     )
 
     assert result.conversation is conversation
+    assert result.user_message.sequence == 5
+    assert result.assistant_message.sequence == 6
     session.add.assert_not_called()
     session.commit.assert_awaited_once()
 
