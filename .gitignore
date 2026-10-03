@@ -23,6 +23,7 @@ storage/*
 # IDE
 .vscode/
 .idea/
+.history/
 
 # Operating system
 .DS_Store
