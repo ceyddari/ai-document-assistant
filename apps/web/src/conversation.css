@@ -6,6 +6,7 @@
 .message-list { display: flex; flex-direction: column; gap: 30px; padding: 30px 0 10px; }
 .message { display: flex; align-items: flex-start; gap: 12px; padding: 0; border: 0; }
 .message.assistant { align-self: stretch; max-width: 100%; }
+.message.assistant { gap: 0; }
 .message.user { align-self: flex-end; flex-direction: row-reverse; max-width: min(76%, 620px); }
 .message-avatar { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: #251b2d; border: 1px solid #ffffff17; color: #d987f1; font-size: 12px; font-weight: 600; }
 .message.user .message-avatar { background: linear-gradient(145deg, #8b35d7, #c752dd); border-color: #dc83ef55; color: #fff; box-shadow: 0 5px 18px #9b38d338; }
