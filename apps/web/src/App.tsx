@@ -120,6 +120,8 @@ function MessageContent({ content }: { content: string }) {
 function App() {
   const [session, setSession] = useState<AuthSession | null>(readSession);
   const [started, setStarted] = useState(() => readSession() !== null);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 720);
+  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 1050);
   const [organizationId, setOrganizationId] = useState("");
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -249,8 +251,8 @@ function App() {
   if (!session) return <AuthScreen onAuthenticated={authenticated} />;
   if (!organizationId) return <main className="empty-page"><h2>Bu hesaba bağlı bir organizasyon bulunamadı.</h2><button onClick={logout}>Çıkış yap</button></main>;
 
-  return <main className="app-shell">
-    <aside className="sidebar">
+  return <main className={`app-shell${sidebarOpen ? "" : " sidebar-closed"}${libraryOpen ? "" : " library-closed"}`}>
+    <aside id="conversation-sidebar" className="sidebar" hidden={!sidebarOpen}>
       <button className="home-link" onClick={() => setStarted(false)}><span>⌂</span> Ana sayfa</button>
       <button className="new-chat" onClick={() => { activeConversationId.current = null; setActive(null); }}><span>＋</span> Yeni konuşma</button>
       <div className="sidebar-title">Konuşmalar</div>
@@ -260,7 +262,21 @@ function App() {
       <div className="user-card"><div className="avatar">{session.user.email[0].toUpperCase()}</div><div><b>{session.user.email.split("@")[0]}</b><small>{session.user.email}</small></div><button title="Çıkış yap" onClick={logout}>↗</button></div>
     </aside>
     <section className="workspace">
-      <header><div><span className="status-dot" /> Bilgi merkezi aktif</div><div className="header-actions"><button onClick={() => fileInput.current?.click()} disabled={uploading}>⌁ {uploading ? "Yükleniyor…" : "PDF yükle"}</button><input ref={fileInput} hidden type="file" accept="application/pdf,.pdf" onChange={event => void upload(event.target.files?.[0])} /></div></header>
+      <header>
+        <div className="workspace-navigation">
+          <button className="panel-toggle" type="button" aria-controls="conversation-sidebar" aria-expanded={sidebarOpen} aria-label={sidebarOpen ? "Konuşma panelini kapat" : "Konuşma panelini aç"} title={sidebarOpen ? "Konuşma panelini kapat" : "Konuşma panelini aç"} onClick={() => setSidebarOpen(value => !value)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={sidebarOpen ? "M15 6 7 12 15 18Z" : "M9 6 17 12 9 18Z"} /></svg>
+          </button>
+          <span className="workspace-status"><span className="status-dot" /> Bilgi merkezi aktif</span>
+        </div>
+        <div className="header-actions">
+          <button onClick={() => fileInput.current?.click()} disabled={uploading}>⌁ {uploading ? "Yükleniyor…" : "PDF yükle"}</button>
+          <button className="panel-toggle" type="button" aria-controls="document-sidebar" aria-expanded={libraryOpen} aria-label={libraryOpen ? "Doküman panelini kapat" : "Doküman panelini aç"} title={libraryOpen ? "Doküman panelini kapat" : "Doküman panelini aç"} onClick={() => setLibraryOpen(value => !value)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={libraryOpen ? "M9 6 17 12 9 18Z" : "M15 6 7 12 15 18Z"} /></svg>
+          </button>
+          <input ref={fileInput} hidden type="file" accept="application/pdf,.pdf" onChange={event => void upload(event.target.files?.[0])} />
+        </div>
+      </header>
       {error && <div className="global-error">{error}<button onClick={() => setError("")}>×</button></div>}
       <div className="content">
         {!visibleMessages.length ? <section className="welcome">
@@ -268,9 +284,9 @@ function App() {
           <div className="suggestions"><button onClick={() => setQuestion("Dokümanlardaki en önemli noktaları özetle.")}><span>01</span><b>Genel bir özet çıkar</b><small>Belgelerdeki ana fikirleri keşfet</small></button><button onClick={() => setQuestion("Bu dokümanlarda hangi süreçler anlatılıyor?")}><span>02</span><b>Süreçleri bul</b><small>Adımları ve sorumlulukları listele</small></button></div>
         </section> : <section className="conversation-view"><div className="conversation-heading"><p className="eyebrow">KONUŞMA</p><h2>{active?.title ?? "Yeni konuşma"}</h2></div><div className="message-list">{visibleMessages.map(message => <article key={message.id} className={`message ${message.role}`}>{message.role === "user" && <div className="message-avatar" aria-hidden="true">{session.user.email[0].toUpperCase()}</div>}<div className="message-column"><div className="message-role">{message.role === "user" ? "Siz" : "Asistan"}</div><div className="message-body"><MessageContent content={message.content} /><SourceList sources={message.sources} /></div></div></article>)}{asking && pendingMessage?.conversationId === (active?.id ?? null) && <div className="thinking"><div><i /><i /><i /> Kaynaklar taranıyor</div></div>}<div ref={conversationEnd} /></div></section>}
       </div>
-      <footer className="composer-area"><form className="composer" onSubmit={ask}><textarea value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Dokümanlarınız hakkında bir soru sorun…" rows={1} /><button disabled={asking || !question.trim()} aria-label="Gönder">↑</button><div className="composer-note">Enter ile gönder · Shift + Enter ile yeni satır</div></form><p>Yanıtlar yalnızca yüklediğiniz dokümanlara dayanır ve kaynaklarıyla gösterilir.</p></footer>
+      <footer className="composer-area"><form className="composer" onSubmit={ask}><textarea value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Dokümanlarınız hakkında bir soru sorun…" rows={1} /><button disabled={asking || !question.trim()} aria-label="Gönder">↑</button></form><p>Yanıtlar yalnızca yüklediğiniz dokümanlara dayanır ve kaynaklarıyla gösterilir.</p></footer>
     </section>
-    <aside className="library"><div className="library-head"><div><p className="eyebrow">KÜTÜPHANE</p><h3>Dokümanlar</h3></div><span>{documents.length}</span></div><div className="document-list">{documents.length ? documents.map(document => <div className="document-card" key={document.id}><div className="pdf-icon">PDF</div><div><b title={document.original_filename}>{document.original_filename}</b><small>{(document.size_bytes / 1024).toFixed(0)} KB · {formatDate(document.created_at)}</small><span className={`status ${document.status}`} title={document.error_message ?? undefined}>{document.status === "ready" ? "Hazır" : document.status === "failed" ? "İşlenemedi" : document.status === "pending" ? "Sırada" : "İşleniyor"}</span>{document.status === "failed" && document.error_message && <small className="document-error">{document.error_message}</small>}{document.status === "failed" && <button className="retry-document" disabled={retryingDocumentId !== null} onClick={() => void retryDocument(document.id)}>{retryingDocumentId === document.id ? "Tekrar başlatılıyor…" : "Tekrar dene"}</button>}</div></div>) : <div className="empty-library"><div>⌁</div><p>Henüz doküman yok</p><small>İlk PDF’inizi yükleyin</small></div>}</div><button className="library-upload" onClick={() => fileInput.current?.click()} disabled={uploading}>＋ Doküman ekle</button></aside>
+    <aside id="document-sidebar" className="library" hidden={!libraryOpen}><div className="library-head"><div><p className="eyebrow">KÜTÜPHANE</p><h3>Dokümanlar</h3></div><span>{documents.length}</span></div><div className="document-list">{documents.length ? documents.map(document => <div className="document-card" key={document.id}><div className="pdf-icon">PDF</div><div><b title={document.original_filename}>{document.original_filename}</b><small>{(document.size_bytes / 1024).toFixed(0)} KB · {formatDate(document.created_at)}</small><span className={`status ${document.status}`} title={document.error_message ?? undefined}>{document.status === "ready" ? "Hazır" : document.status === "failed" ? "İşlenemedi" : document.status === "pending" ? "Sırada" : "İşleniyor"}</span>{document.status === "failed" && document.error_message && <small className="document-error">{document.error_message}</small>}{document.status === "failed" && <button className="retry-document" disabled={retryingDocumentId !== null} onClick={() => void retryDocument(document.id)}>{retryingDocumentId === document.id ? "Tekrar başlatılıyor…" : "Tekrar dene"}</button>}</div></div>) : <div className="empty-library"><div>⌁</div><p>Henüz doküman yok</p><small>İlk PDF’inizi yükleyin</small></div>}</div><button className="library-upload" onClick={() => fileInput.current?.click()} disabled={uploading}>＋ Doküman ekle</button></aside>
   </main>;
 }
 
