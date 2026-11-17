@@ -1,3 +1,7 @@
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -13,11 +17,31 @@ from app.api.routes import (
     search_router,
 )
 from app.core.config import get_settings
+from app.db.session import get_session_factory
+from app.services import fail_interrupted_documents
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # Background processing dies with the process; without this, documents stay
+    # "processing" forever and cannot be retried.
+    try:
+        async with get_session_factory()() as session:
+            count = await fail_interrupted_documents(session=session)
+        if count:
+            logger.warning("Yarıda kalan %s doküman 'failed' olarak işaretlendi.", count)
+    except (OSError, SQLAlchemyError):
+        logger.exception("Yarıda kalan dokümanlar açılışta güncellenemedi.")
+    yield
+
 
 app = FastAPI(
     title="AI Document Assistant API",
     description="Şirket içi dokümanlar üzerinde kaynaklı soru-cevap API'si",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import aiofiles
 from fastapi import UploadFile
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,9 @@ from app.models import Document, DocumentStatus, Organization
 
 UPLOAD_CHUNK_SIZE = 1024 * 1024
 PDF_SIGNATURE = b"%PDF-"
+INTERRUPTED_PROCESSING_MESSAGE = (
+    "Sunucu yeniden başladığı için işleme yarıda kaldı. Yeniden deneyebilirsiniz."
+)
 
 
 class OrganizationNotFoundError(Exception):
@@ -168,6 +171,25 @@ async def get_document_by_id(
         raise DocumentNotFoundError("Doküman bulunamadı.")
 
     return document
+
+
+async def fail_interrupted_documents(*, session: AsyncSession) -> int:
+    # shortcut: assumes a single API process; with several workers or replicas this would
+    # fail another process's in-flight job. Move processing to a job queue before scaling out.
+    statement = (
+        update(Document)
+        .where(Document.status.in_([DocumentStatus.PENDING, DocumentStatus.PROCESSING]))
+        .values(status=DocumentStatus.FAILED, error_message=INTERRUPTED_PROCESSING_MESSAGE)
+    )
+
+    try:
+        result = await session.execute(statement)
+        await session.commit()
+    except SQLAlchemyError:
+        await session.rollback()
+        raise
+
+    return result.rowcount
 
 
 async def prepare_document_retry(

@@ -17,6 +17,7 @@ from app.services import (
     InvalidPdfError,
     OrganizationNotFoundError,
     create_document,
+    fail_interrupted_documents,
     get_document_by_id,
     list_documents,
     prepare_document_retry,
@@ -348,3 +349,19 @@ async def test_prepare_document_retry_rejects_active_document(
         )
 
     db_session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_fail_interrupted_documents_marks_pending_and_processing_as_failed(
+    db_session: AsyncMock,
+) -> None:
+    db_session.execute.return_value = MagicMock(rowcount=2)
+
+    count = await fail_interrupted_documents(session=db_session)
+
+    assert count == 2
+    statement = db_session.execute.await_args.args[0]
+    params = statement.compile().params
+    assert set(params["status_1"]) == {DocumentStatus.PENDING, DocumentStatus.PROCESSING}
+    assert params["status"] == DocumentStatus.FAILED
+    db_session.commit.assert_awaited_once()
