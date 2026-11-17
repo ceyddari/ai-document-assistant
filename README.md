@@ -10,10 +10,11 @@ modellerle çalışan çok kiracılı bir RAG uygulaması.
 - LangChain recursive text chunking
 - Ollama `bge-m3` ile 1024 boyutlu embedding
 - Uzun dokümanlar için batch embedding, exponential retry ve yeniden işleme
-- PostgreSQL 17 + pgvector cosine similarity araması
+- PostgreSQL 17 + pgvector cosine similarity araması, Türkçe tam metin aramasıyla güçlendirilmiş hibrit sıralama
+- Takip sorularını konuşma geçmişiyle bağımsız soruya çeviren sorgu yeniden yazma
 - Organizasyon bazlı veri izolasyonu
 - Arka planda doküman indeksleme ve durum yönetimi
-- Ollama `qwen3:8b` ile kaynak-temelli cevap üretimi
+- Ollama `qwen3:8b` ile kaynak-temelli cevap üretimi; yalnızca atıf yapılan kaynaklar gösterilir
 - Cevapla birlikte doküman, sayfa, chunk ve similarity kaynakları
 - Conversation oluşturma, listeleme ve mesajlı detay
 - `/ask` üzerinden yeni veya mevcut conversation'a mesaj ve kaynak kaydı
@@ -44,13 +45,13 @@ ollama pull qwen3:8b
 docker compose up -d --build
 ```
 
-PostgreSQL, API (migration'lar açılışta otomatik çalışır) ve frontend konteynerde
-çalışır. API, Ollama'ya `host.docker.internal:11434` üzerinden bağlanır; farklı bir
+PostgreSQL ve API (migration'lar açılışta otomatik çalışır) konteynerde çalışır;
+frontend'i `cd apps/web; npm install; npm run dev` ile ayrıca başlatın. API, Ollama'ya `host.docker.internal:11434` üzerinden bağlanır; farklı bir
 adres için `.env` içine `DOCKER_OLLAMA_BASE_URL` ekleyin. Yüklenen PDF'ler `storage/`
 klasöründe kalır. Durdurmak için `docker compose down`, logları görmek için
 `docker compose logs -f api` kullanın. `start-local.cmd` aynı işi tek tıkla yapar.
 
-Frontend: <http://127.0.0.1:5173> · Swagger UI: <http://127.0.0.1:8000/docs>
+Frontend (`npm run dev`): <http://127.0.0.1:5173> · Swagger UI: <http://127.0.0.1:8000/docs>
 
 ## Geliştirme için yerel kurulum (hot reload)
 
@@ -123,6 +124,23 @@ python -m ruff check apps/api
 python -m pytest apps/api/tests -v
 cd apps/web
 npm run build
+```
+
+### Retrieval değerlendirmesi
+
+Arama ayarlarını (benzerlik eşiği, anahtar kelime ağırlığı, chunk biçimi) değiştirmeden önce
+ve sonra ölçün:
+
+```powershell
+python apps/api/scripts/evaluate_retrieval.py
+```
+
+Vaka dosyası `storage/eval/retrieval_cases.json` altında durur (biçim script'in başında).
+Özel doküman içeriği taşıdığı için Git'e eklenmez. Embedding girdisinin biçimi değişirse
+mevcut chunk'ları kaynak geçmişini bozmadan yeniden embed etmek için:
+
+```powershell
+python apps/api/scripts/reembed_documents.py
 ```
 
 Gerçek yüklenen PDF'ler `storage/documents/`, secret değerleri `.env` altında
