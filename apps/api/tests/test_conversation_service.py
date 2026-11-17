@@ -12,6 +12,7 @@ from app.services import (
     OrganizationNotFoundError,
     create_conversation,
     get_conversation_with_messages,
+    get_recent_messages,
     list_conversations,
 )
 
@@ -131,6 +132,54 @@ async def test_get_conversation_returns_chronological_messages(session: AsyncMoc
     assert result_conversation is conversation
     assert [item.message for item in result_messages] == messages
     assert result_messages[0].sources == []
+
+
+@pytest.mark.asyncio
+async def test_get_recent_messages_returns_latest_oldest_first(session: AsyncMock) -> None:
+    organization_id = uuid4()
+    conversation_id = uuid4()
+    newest_first = [
+        Message(
+            id=uuid4(),
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            role=MessageRole.ASSISTANT if sequence % 2 == 0 else MessageRole.USER,
+            content=f"mesaj {sequence}",
+            sequence=sequence,
+        )
+        for sequence in (4, 3)
+    ]
+    scalar_result = MagicMock()
+    scalar_result.all.return_value = newest_first
+    session.scalar.return_value = conversation_id
+    session.scalars.return_value = scalar_result
+
+    messages = await get_recent_messages(
+        organization_id=organization_id,
+        conversation_id=conversation_id,
+        session=session,
+        limit=2,
+    )
+
+    assert [message.sequence for message in messages] == [3, 4]
+    statement_sql = str(session.scalars.await_args.args[0])
+    assert "ORDER BY messages.sequence DESC" in statement_sql
+    assert "LIMIT" in statement_sql
+
+
+@pytest.mark.asyncio
+async def test_get_recent_messages_enforces_organization_scope(session: AsyncMock) -> None:
+    session.scalar.return_value = None
+
+    with pytest.raises(ConversationNotFoundError):
+        await get_recent_messages(
+            organization_id=uuid4(),
+            conversation_id=uuid4(),
+            session=session,
+            limit=6,
+        )
+
+    session.scalars.assert_not_awaited()
 
 
 @pytest.mark.asyncio

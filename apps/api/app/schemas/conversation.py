@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
@@ -22,6 +22,14 @@ class ConversationCreate(BaseModel):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+
+class ConversationUpdate(BaseModel):
+    title: ConversationTitle
+
+
+class MessageFeedbackUpdate(BaseModel):
+    value: Literal[-1, 1] | None
 
 
 class ConversationResponse(BaseModel):
@@ -50,6 +58,7 @@ class MessageResponse(BaseModel):
     content: str
     sequence: int
     created_at: datetime
+    feedback: int | None = None
     sources: list[RetrievedChunkResponse] = Field(default_factory=list)
 
 

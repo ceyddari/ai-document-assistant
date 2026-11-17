@@ -180,6 +180,7 @@ def test_upload_document_returns_created_document(
     assert response.json() == {
         "id": str(document_id),
         "organization_id": str(organization_id),
+        "folder_id": None,
         "original_filename": "policy.pdf",
         "content_type": "application/pdf",
         "size_bytes": 24,
@@ -297,6 +298,7 @@ def test_get_documents_returns_paginated_documents(
         session=db_session,
         limit=10,
         offset=5,
+        folder_id=None,
     )
 
 

@@ -9,6 +9,8 @@ class AskRequest(BaseModel):
     question: SearchQuery
     limit: int = Field(default=5, ge=1, le=20)
     conversation_id: UUID | None = None
+    # Restrict retrieval to these documents; null or empty means all documents.
+    document_ids: list[UUID] | None = Field(default=None, max_length=100)
 
 
 class AskResponse(BaseModel):

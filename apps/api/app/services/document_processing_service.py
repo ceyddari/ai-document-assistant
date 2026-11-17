@@ -1,4 +1,5 @@
 import asyncio
+import unicodedata
 from pathlib import Path
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,6 +12,15 @@ from app.services.embedding_service import (
 )
 from app.services.pdf_parser import PdfParsingError, parse_pdf
 from app.services.text_chunker import chunk_pages
+
+
+def build_embedding_text(*, filename: str, content: str) -> str:
+    """Prefix the chunk with its document title so the vector carries that context.
+
+    Only the embedding input changes; the stored chunk content stays as-is.
+    """
+    title = unicodedata.normalize("NFC", Path(filename).stem)
+    return f"{title}\n\n{content}"
 
 
 class DocumentProcessingError(Exception):
@@ -36,9 +46,7 @@ async def _mark_document_failed(
         await session.refresh(document)
     except SQLAlchemyError as database_error:
         await session.rollback()
-        raise DocumentProcessingError(
-            "Doküman işleme hatası kaydedilemedi."
-        ) from database_error
+        raise DocumentProcessingError("Doküman işleme hatası kaydedilemedi.") from database_error
 
 
 async def process_document(
@@ -64,7 +72,10 @@ async def process_document(
             raise EmptyDocumentError("Dokümanda işlenebilir metin bulunamadı.")
 
         embeddings = await embedding_service.embed_documents(
-            [chunk.content for chunk in text_chunks]
+            [
+                build_embedding_text(filename=document.original_filename, content=chunk.content)
+                for chunk in text_chunks
+            ]
         )
 
         document_chunks = [

@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.dependencies import DatabaseSession, require_organization_member
@@ -10,15 +10,21 @@ from app.schemas import (
     ConversationDetailResponse,
     ConversationListResponse,
     ConversationResponse,
+    ConversationUpdate,
+    MessageFeedbackUpdate,
     MessageResponse,
     RetrievedChunkResponse,
 )
 from app.services import (
     ConversationNotFoundError,
+    MessageNotFoundError,
     OrganizationNotFoundError,
     create_conversation,
+    delete_conversation,
     get_conversation_with_messages,
     list_conversations,
+    rename_conversation,
+    set_message_feedback,
 )
 
 router = APIRouter(
@@ -113,3 +119,71 @@ async def get_conversation(
             for item in messages
         ],
     )
+
+
+@router.patch("/{conversation_id}", response_model=ConversationResponse)
+async def rename_organization_conversation(
+    organization_id: UUID,
+    conversation_id: UUID,
+    request: ConversationUpdate,
+    session: DatabaseSession,
+) -> ConversationResponse:
+    try:
+        conversation = await rename_conversation(
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            title=request.title,
+            session=session,
+        )
+    except ConversationNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(status_code=503, detail="Konuşma şu anda güncellenemiyor.") from error
+
+    return ConversationResponse.model_validate(conversation)
+
+
+@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_organization_conversation(
+    organization_id: UUID,
+    conversation_id: UUID,
+    session: DatabaseSession,
+) -> Response:
+    try:
+        await delete_conversation(
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            session=session,
+        )
+    except ConversationNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(status_code=503, detail="Konuşma şu anda silinemiyor.") from error
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/{conversation_id}/messages/{message_id}/feedback", response_model=MessageResponse)
+async def update_message_feedback(
+    organization_id: UUID,
+    conversation_id: UUID,
+    message_id: UUID,
+    request: MessageFeedbackUpdate,
+    session: DatabaseSession,
+) -> MessageResponse:
+    try:
+        message = await set_message_feedback(
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            value=request.value,
+            session=session,
+        )
+    except MessageNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=503, detail="Geri bildirim şu anda kaydedilemiyor."
+        ) from error
+
+    return MessageResponse.model_validate(message)

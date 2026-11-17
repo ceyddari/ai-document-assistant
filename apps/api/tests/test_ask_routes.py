@@ -10,15 +10,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.db.session import get_db_session
 from app.main import app
-from app.models import Conversation, Message
+from app.models import Conversation, Message, MessageRole
 from app.services import (
+    ConversationNotFoundError,
     EmbeddingServiceError,
+    HistoryMessage,
     LlmServiceError,
     OrganizationNotFoundError,
     PersistedExchange,
     RagAnswer,
     RetrievedChunk,
 )
+from app.services.rag_service import HISTORY_MESSAGE_LIMIT
 
 
 @pytest.fixture
@@ -63,6 +66,13 @@ def answer_question_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 @pytest.fixture
+def get_recent_messages_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    mock = AsyncMock(return_value=[])
+    monkeypatch.setattr("app.api.routes.ask.get_recent_messages", mock)
+    return mock
+
+
+@pytest.fixture
 def persist_rag_exchange_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     mock = AsyncMock()
     monkeypatch.setattr("app.api.routes.ask.persist_rag_exchange", mock)
@@ -89,8 +99,13 @@ def test_ask_returns_answer_with_sources(
     services: tuple[MagicMock, MagicMock],
     answer_question_mock: AsyncMock,
     persist_rag_exchange_mock: AsyncMock,
+    get_recent_messages_mock: AsyncMock,
 ) -> None:
     organization_id = uuid4()
+    previous_question = MagicMock(spec=Message)
+    previous_question.role = MessageRole.USER
+    previous_question.content = "İzin kaç gün?"
+    get_recent_messages_mock.return_value = [previous_question]
     source = RetrievedChunk(
         chunk_id=uuid4(),
         document_id=uuid4(),
@@ -134,8 +149,16 @@ def test_ask_returns_answer_with_sources(
         session=db_session,
         embedding_service=services[0],
         llm_service=services[1],
+        history=[HistoryMessage(role="user", content="İzin kaç gün?")],
+        document_ids=None,
         limit=4,
         minimum_similarity=0.35,
+    )
+    get_recent_messages_mock.assert_awaited_once_with(
+        organization_id=organization_id,
+        conversation_id=conversation.id,
+        session=db_session,
+        limit=HISTORY_MESSAGE_LIMIT,
     )
     persist_rag_exchange_mock.assert_awaited_once_with(
         organization_id=organization_id,
@@ -203,3 +226,36 @@ def test_ask_rejects_blank_question(
 
     assert response.status_code == 422
     answer_question_mock.assert_not_awaited()
+
+
+def test_ask_rejects_unknown_conversation_before_calling_models(
+    client: TestClient,
+    services: tuple[MagicMock, MagicMock],
+    answer_question_mock: AsyncMock,
+    get_recent_messages_mock: AsyncMock,
+) -> None:
+    get_recent_messages_mock.side_effect = ConversationNotFoundError("Konuşma bulunamadı.")
+
+    response = client.post(
+        f"/organizations/{uuid4()}/ask",
+        json={"question": "Peki?", "conversation_id": str(uuid4())},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Konuşma bulunamadı."}
+    answer_question_mock.assert_not_awaited()
+
+
+def test_ask_without_conversation_sends_no_history(
+    client: TestClient,
+    services: tuple[MagicMock, MagicMock],
+    answer_question_mock: AsyncMock,
+    persist_rag_exchange_mock: AsyncMock,
+    get_recent_messages_mock: AsyncMock,
+) -> None:
+    answer_question_mock.side_effect = LlmServiceError("stop after the call")
+
+    client.post(f"/organizations/{uuid4()}/ask", json={"question": "İlk soru"})
+
+    get_recent_messages_mock.assert_not_awaited()
+    assert answer_question_mock.await_args.kwargs["history"] == []

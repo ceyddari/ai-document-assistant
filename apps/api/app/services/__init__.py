@@ -3,21 +3,28 @@ from app.services.document_processing_service import (
     process_document,
 )
 from app.services.document_service import (
+    DocumentBusyError,
     DocumentNotFoundError,
     DocumentNotRetryableError,
     DocumentTooLargeError,
     InvalidPdfError,
     OrganizationNotFoundError,
     create_document,
+    delete_document,
     fail_interrupted_documents,
     get_document_by_id,
     list_documents,
     prepare_document_retry,
+    resolve_document_file,
 )
 from app.services.embedding_service import (
     EmbeddingDimensionError,
     EmbeddingService,
     EmbeddingServiceError,
+)
+from app.services.folder_service import (
+    FolderNotFoundError,
+    move_document,
 )
 from app.services.llm_service import LlmService, LlmServiceError
 from app.services.pdf_parser import (
@@ -28,9 +35,13 @@ from app.services.pdf_parser import (
 )
 from app.services.rag_service import (
     NO_RELEVANT_SOURCE_ANSWER,
+    HistoryMessage,
     RagAnswer,
     answer_question,
+    apply_citations,
     build_user_prompt,
+    rewrite_question,
+    stream_answer_question,
 )
 from app.services.retrieval_service import (
     RetrievedChunk,
@@ -46,6 +57,7 @@ __all__ = [
     "AiReadiness",
     "AiReadinessError",
     "ConversationNotFoundError",
+    "DocumentBusyError",
     "DocumentNotFoundError",
     "DocumentNotRetryableError",
     "DocumentProcessingError",
@@ -54,9 +66,12 @@ __all__ = [
     "EmbeddingService",
     "EmbeddingServiceError",
     "EncryptedPdfError",
+    "FolderNotFoundError",
+    "HistoryMessage",
     "InvalidPdfError",
     "LlmService",
     "LlmServiceError",
+    "MessageNotFoundError",
     "OrganizationNotFoundError",
     "ParsedPage",
     "PdfParsingError",
@@ -65,21 +80,31 @@ __all__ = [
     "RetrievedChunk",
     "TextChunk",
     "answer_question",
+    "apply_citations",
     "build_user_prompt",
     "check_ai_readiness",
     "chunk_pages",
     "create_conversation",
     "create_document",
+    "delete_conversation",
+    "delete_document",
     "fail_interrupted_documents",
     "get_conversation_with_messages",
     "get_document_by_id",
+    "get_recent_messages",
     "list_conversations",
     "list_documents",
+    "move_document",
     "parse_pdf",
     "persist_rag_exchange",
     "prepare_document_retry",
     "process_document",
+    "rename_conversation",
+    "resolve_document_file",
+    "rewrite_question",
     "search_relevant_chunks",
+    "set_message_feedback",
+    "stream_answer_question",
 ]
 from app.services.ai_readiness_service import (
     AiReadiness,
@@ -88,8 +113,13 @@ from app.services.ai_readiness_service import (
 )
 from app.services.conversation_service import (
     ConversationNotFoundError,
+    MessageNotFoundError,
     create_conversation,
+    delete_conversation,
     get_conversation_with_messages,
+    get_recent_messages,
     list_conversations,
+    rename_conversation,
+    set_message_feedback,
 )
 from app.services.message_service import PersistedExchange, persist_rag_exchange

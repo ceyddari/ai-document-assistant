@@ -14,6 +14,7 @@ from app.api.routes import (
     auth_router,
     conversations_router,
     documents_router,
+    folders_router,
     search_router,
 )
 from app.core.config import get_settings
@@ -53,6 +54,7 @@ app.add_middleware(
 )
 
 app.include_router(documents_router)
+app.include_router(folders_router)
 app.include_router(auth_router)
 app.include_router(search_router)
 app.include_router(ask_router)

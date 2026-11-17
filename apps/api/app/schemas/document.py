@@ -11,6 +11,7 @@ class DocumentResponse(BaseModel):
 
     id: UUID
     organization_id: UUID
+    folder_id: UUID | None
     original_filename: str
     content_type: str
     size_bytes: int

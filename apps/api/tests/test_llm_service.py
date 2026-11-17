@@ -95,3 +95,9 @@ async def test_generate_answer_wraps_timeout(
             system_prompt="Sistem talimatı",
             user_prompt="Kullanıcı sorusu",
         )
+
+
+def test_llm_service_builds_real_ollama_client(settings: Settings) -> None:
+    # Other tests mock the client; this catches settings the real class rejects
+    # (e.g. keep_alive must be an int for OllamaEmbeddings). No network call is made.
+    LlmService(settings=settings)

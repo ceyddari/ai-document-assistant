@@ -70,8 +70,47 @@ async def test_persist_rag_exchange_creates_conversation_messages_and_sources(
     assert isinstance(source_models[0], MessageSource)
     assert source_models[0].chunk_id == source.chunk_id
     assert source_models[0].similarity == 0.8
+    assert source_models[0].position == 0
     session.commit.assert_awaited_once()
     assert session.refresh.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_persist_rag_exchange_stores_source_display_order(session: AsyncMock) -> None:
+    # Sources arrive in citation order, not similarity order; that order must survive reload.
+    sources = [
+        RetrievedChunk(
+            chunk_id=uuid4(),
+            document_id=uuid4(),
+            filename="a.pdf",
+            page_number=1,
+            content="İçerik",
+            similarity=similarity,
+        )
+        for similarity in (0.5, 0.95, 0.7)
+    ]
+
+    async def assign_ids() -> None:
+        session.add.call_args.args[0].id = uuid4()
+        for call in session.add_all.call_args_list:
+            for model in call.args[0]:
+                model.id = uuid4()
+
+    session.flush.side_effect = assign_ids
+    session.scalar.return_value = None
+
+    await persist_rag_exchange(
+        organization_id=uuid4(),
+        conversation_id=None,
+        question="Soru",
+        answer="Cevap [Kaynak 1][Kaynak 2][Kaynak 3]",
+        sources=sources,
+        session=session,
+    )
+
+    source_models = session.add_all.call_args_list[1].args[0]
+    assert [model.chunk_id for model in source_models] == [source.chunk_id for source in sources]
+    assert [model.position for model in source_models] == [0, 1, 2]
 
 
 @pytest.mark.asyncio

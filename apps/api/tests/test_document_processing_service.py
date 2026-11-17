@@ -125,10 +125,11 @@ async def test_process_document_creates_chunks_and_marks_document_as_ready(
     )
     chunk_pages_mock.assert_called_once_with(parsed_pages)
 
+    # The document title is prepended to the embedding input only, not to stored content.
     embedding_service.embed_documents.assert_awaited_once_with(
         [
-            "First page content",
-            "Second page content",
+            "policy\n\nFirst page content",
+            "policy\n\nSecond page content",
         ]
     )
 

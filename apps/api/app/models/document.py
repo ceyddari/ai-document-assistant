@@ -44,6 +44,12 @@ class Document(Base):
         index=True,
     )
 
+    folder_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("folders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     original_filename: Mapped[str] = mapped_column(
         String(255),
         nullable=False,

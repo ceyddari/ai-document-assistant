@@ -7,12 +7,24 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Conversation, Document, DocumentChunk, Message, MessageSource, Organization
+from app.models import (
+    Conversation,
+    Document,
+    DocumentChunk,
+    Message,
+    MessageRole,
+    MessageSource,
+    Organization,
+)
 from app.services.document_service import OrganizationNotFoundError
 from app.services.retrieval_service import RetrievedChunk
 
 
 class ConversationNotFoundError(Exception):
+    pass
+
+
+class MessageNotFoundError(Exception):
     pass
 
 
@@ -79,6 +91,38 @@ async def list_conversations(
     return conversations.all(), int(total or 0)
 
 
+async def get_recent_messages(
+    *,
+    organization_id: UUID,
+    conversation_id: UUID,
+    session: AsyncSession,
+    limit: int,
+) -> list[Message]:
+    """Last `limit` messages, oldest first. Raises if the conversation is not in the org."""
+    conversation_id_in_organization = await session.scalar(
+        select(Conversation.id).where(
+            Conversation.id == conversation_id,
+            Conversation.organization_id == organization_id,
+        )
+    )
+
+    if conversation_id_in_organization is None:
+        raise ConversationNotFoundError("Konuşma bulunamadı.")
+
+    statement = (
+        select(Message)
+        .where(
+            Message.conversation_id == conversation_id,
+            Message.organization_id == organization_id,
+        )
+        .order_by(Message.sequence.desc())
+        .limit(limit)
+    )
+    messages = list((await session.scalars(statement)).all())
+    messages.reverse()
+    return messages
+
+
 async def get_conversation_with_messages(
     *,
     organization_id: UUID,
@@ -120,7 +164,8 @@ async def get_conversation_with_messages(
             MessageSource.message_id.in_([message.id for message in messages]),
             MessageSource.organization_id == organization_id,
         )
-        .order_by(MessageSource.created_at.asc(), MessageSource.id.asc())
+        # Stored display order, so [Kaynak N] in the answer matches source N.
+        .order_by(MessageSource.position.asc())
     )
     source_rows = (await session.execute(source_statement)).all()
     sources_by_message: dict[UUID, list[RetrievedChunk]] = defaultdict(list)
@@ -141,3 +186,92 @@ async def get_conversation_with_messages(
         MessageWithSources(message=message, sources=sources_by_message[message.id])
         for message in messages
     ]
+
+
+async def _get_conversation(
+    *, organization_id: UUID, conversation_id: UUID, session: AsyncSession
+) -> Conversation:
+    conversation = await session.scalar(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.organization_id == organization_id,
+        )
+    )
+
+    if conversation is None:
+        raise ConversationNotFoundError("Konuşma bulunamadı.")
+
+    return conversation
+
+
+async def rename_conversation(
+    *,
+    organization_id: UUID,
+    conversation_id: UUID,
+    title: str,
+    session: AsyncSession,
+) -> Conversation:
+    conversation = await _get_conversation(
+        organization_id=organization_id, conversation_id=conversation_id, session=session
+    )
+    conversation.title = title
+
+    try:
+        await session.commit()
+        await session.refresh(conversation)
+    except SQLAlchemyError:
+        await session.rollback()
+        raise
+
+    return conversation
+
+
+async def delete_conversation(
+    *,
+    organization_id: UUID,
+    conversation_id: UUID,
+    session: AsyncSession,
+) -> None:
+    """Messages and their sources go with it (ON DELETE CASCADE)."""
+    conversation = await _get_conversation(
+        organization_id=organization_id, conversation_id=conversation_id, session=session
+    )
+
+    try:
+        await session.delete(conversation)
+        await session.commit()
+    except SQLAlchemyError:
+        await session.rollback()
+        raise
+
+
+async def set_message_feedback(
+    *,
+    organization_id: UUID,
+    conversation_id: UUID,
+    message_id: UUID,
+    value: int | None,
+    session: AsyncSession,
+) -> Message:
+    message = await session.scalar(
+        select(Message).where(
+            Message.id == message_id,
+            Message.conversation_id == conversation_id,
+            Message.organization_id == organization_id,
+            Message.role == MessageRole.ASSISTANT,
+        )
+    )
+
+    if message is None:
+        raise MessageNotFoundError("Mesaj bulunamadı.")
+
+    message.feedback = value
+
+    try:
+        await session.commit()
+        await session.refresh(message)
+    except SQLAlchemyError:
+        await session.rollback()
+        raise
+
+    return message

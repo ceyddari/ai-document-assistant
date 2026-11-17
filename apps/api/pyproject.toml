@@ -31,7 +31,6 @@ exclude = ["alembic*", "tests*"]
 
 [project.optional-dependencies]
 dev = [
-    "httpx2",
     "pytest",
     "pytest-asyncio",
     "reportlab",

@@ -80,8 +80,9 @@ async def persist_rag_exchange(
                     message_id=assistant_message.id,
                     chunk_id=source.chunk_id,
                     similarity=source.similarity,
+                    position=position,
                 )
-                for source in sources
+                for position, source in enumerate(sources)
             ]
         )
         conversation.updated_at = datetime.now(UTC)
