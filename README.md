@@ -33,7 +33,26 @@ modellerle çalışan çok kiracılı bir RAG uygulaması.
 - Docker Compose
 - React 19, TypeScript, Vite
 
-## Yerel kurulum
+## Docker ile çalıştırma (önerilen)
+
+Gereksinimler: Docker Desktop ve Ollama (host makinede, GPU ve modeller orada kalır).
+
+```powershell
+Copy-Item .env.example .env
+ollama pull bge-m3
+ollama pull qwen3:8b
+docker compose up -d --build
+```
+
+PostgreSQL, API (migration'lar açılışta otomatik çalışır) ve frontend konteynerde
+çalışır. API, Ollama'ya `host.docker.internal:11434` üzerinden bağlanır; farklı bir
+adres için `.env` içine `DOCKER_OLLAMA_BASE_URL` ekleyin. Yüklenen PDF'ler `storage/`
+klasöründe kalır. Durdurmak için `docker compose down`, logları görmek için
+`docker compose logs -f api` kullanın. `start-local.cmd` aynı işi tek tıkla yapar.
+
+Frontend: <http://127.0.0.1:5173> · Swagger UI: <http://127.0.0.1:8000/docs>
+
+## Geliştirme için yerel kurulum (hot reload)
 
 Gereksinimler: Python 3.13, Docker Desktop ve Ollama.
 
