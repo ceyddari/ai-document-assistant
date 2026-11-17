@@ -17,4 +17,5 @@ if errorlevel 1 (
 )
 
 echo.
-echo Proje baslatildi: http://127.0.0.1:5173
+echo DB ve API baslatildi: http://127.0.0.1:8000/docs
+echo Frontend icin: cd apps\web ^&^& npm run dev  (http://127.0.0.1:5173)
