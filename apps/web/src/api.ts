@@ -1,4 +1,4 @@
-import type { AskResponse, AuthSession, Conversation, ConversationDetail, DocumentItem } from "./types";
+import type { AskResponse, AuthSession, Conversation, ConversationDetail, DocumentItem, Feedback, Folder, Message } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
@@ -27,7 +27,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     const body: unknown = await response.json().catch(() => null);
     throw new ApiError(getErrorMessage(body), response.status);
   }
-  return response.json() as Promise<T>;
+  return (response.status === 204 ? undefined : response.json()) as Promise<T>;
 }
 
 export const api = {
@@ -37,9 +37,10 @@ export const api = {
     request<AuthSession>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
   documents: (organizationId: string, token: string) =>
     request<{ items: DocumentItem[] }>(`/organizations/${organizationId}/documents`, {}, token),
-  upload: (organizationId: string, file: File, token: string) => {
+  upload: (organizationId: string, file: File, token: string, folderId?: string | null) => {
     const body = new FormData();
     body.append("file", file);
+    if (folderId) body.append("folder_id", folderId);
     return request<DocumentItem>(`/organizations/${organizationId}/documents`, { method: "POST", body }, token);
   },
   retryDocument: (organizationId: string, documentId: string, token: string) =>
@@ -48,13 +49,92 @@ export const api = {
       { method: "POST" },
       token,
     ),
+  folders: (organizationId: string, token: string) =>
+    request<{ items: Folder[] }>(`/organizations/${organizationId}/folders`, {}, token),
+  createFolder: (organizationId: string, name: string, token: string) =>
+    request<Folder>(`/organizations/${organizationId}/folders`, { method: "POST", body: JSON.stringify({ name }) }, token),
+  deleteFolder: async (organizationId: string, folderId: string, token: string) => {
+    await request<void>(`/organizations/${organizationId}/folders/${folderId}`, { method: "DELETE" }, token);
+  },
+  moveDocument: (organizationId: string, documentId: string, folderId: string | null, token: string) =>
+    request<DocumentItem>(`/organizations/${organizationId}/documents/${documentId}`, { method: "PATCH", body: JSON.stringify({ folder_id: folderId }) }, token),
+  deleteDocument: async (organizationId: string, documentId: string, token: string) => {
+    await request<void>(`/organizations/${organizationId}/documents/${documentId}`, { method: "DELETE" }, token);
+  },
+  // Fetched with the Authorization header and opened as a blob URL, so the token never lands in a URL.
+  documentFile: async (organizationId: string, documentId: string, token: string) => {
+    const response = await fetch(`${API_URL}/organizations/${organizationId}/documents/${documentId}/file`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      throw new ApiError(getErrorMessage(body), response.status);
+    }
+    return response.blob();
+  },
   conversations: (organizationId: string, token: string) =>
     request<{ items: Conversation[] }>(`/organizations/${organizationId}/conversations`, {}, token),
   conversation: (organizationId: string, conversationId: string, token: string) =>
     request<ConversationDetail>(`/organizations/${organizationId}/conversations/${conversationId}`, {}, token),
-  ask: (organizationId: string, question: string, conversationId: string | null, token: string) =>
-    request<AskResponse>(`/organizations/${organizationId}/ask`, {
-      method: "POST",
-      body: JSON.stringify({ question, limit: 5, conversation_id: conversationId }),
-    }, token),
+  renameConversation: (organizationId: string, conversationId: string, title: string, token: string) =>
+    request<Conversation>(`/organizations/${organizationId}/conversations/${conversationId}`, { method: "PATCH", body: JSON.stringify({ title }) }, token),
+  deleteConversation: async (organizationId: string, conversationId: string, token: string) => {
+    await request<void>(`/organizations/${organizationId}/conversations/${conversationId}`, { method: "DELETE" }, token);
+  },
+  setFeedback: (organizationId: string, conversationId: string, messageId: string, value: Feedback, token: string) =>
+    request<Message>(
+      `/organizations/${organizationId}/conversations/${conversationId}/messages/${messageId}/feedback`,
+      { method: "PUT", body: JSON.stringify({ value }) },
+      token,
+    ),
+  askStream,
 };
+
+type AskStreamEvent =
+  | { type: "token"; text: string }
+  | ({ type: "done" } & AskResponse)
+  | { type: "error"; detail: string };
+
+/** POSTs the question and reads server-sent events; resolves with the saved answer.
+ *  `onToken` gets raw model text (its own citation numbers); the result replaces it. */
+async function askStream(
+  organizationId: string,
+  body: { question: string; conversation_id: string | null; document_ids: string[] | null },
+  token: string,
+  onToken: (text: string) => void,
+  signal: AbortSignal,
+): Promise<AskResponse> {
+  const response = await fetch(`${API_URL}/organizations/${organizationId}/ask/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ ...body, limit: 5 }),
+    signal,
+  });
+  if (!response.ok || !response.body) {
+    const errorBody: unknown = await response.json().catch(() => null);
+    throw new ApiError(getErrorMessage(errorBody), response.status);
+  }
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        const block = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        boundary = buffer.indexOf("\n\n");
+        if (!block.startsWith("data: ")) continue;
+        const event = JSON.parse(block.slice(6)) as AskStreamEvent;
+        if (event.type === "token") onToken(event.text);
+        else if (event.type === "done") return event;
+        else throw new ApiError(event.detail, 503);
+      }
+    }
+  } finally {
+    void reader.cancel().catch(() => undefined);
+  }
+  throw new ApiError("Cevap tamamlanmadan bağlantı kesildi.", 503);
+}

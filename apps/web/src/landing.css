@@ -1,5 +1,136 @@
-.landing-shell{position:relative;min-height:100vh;overflow:hidden;background:#030303;color:#f7f4ff;padding:32px clamp(28px,5vw,80px);isolation:isolate}.landing-shell:before{content:"";position:absolute;inset:0;z-index:-3;background:linear-gradient(90deg,#ffffff08 1px,transparent 1px),linear-gradient(#ffffff08 1px,transparent 1px);background-size:72px 72px;mask-image:linear-gradient(to right,#0008,transparent 65%)}.landing-shell:after{content:"";position:absolute;inset:0;z-index:-2;background:radial-gradient(circle at 70% 55%,transparent 0 22%,#030303 66%)}.landing-nav{height:54px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:5}.landing-nav .brand-mark{background:linear-gradient(145deg,#f3d4ff,#9d76ff);color:#100720;box-shadow:0 0 28px #b372ff80}.landing-nav .brand{color:white}.nav-note{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.26em;color:#716b7b}.landing-nav>button{border:1px solid #ffffff30;background:#ffffff09;color:#ddd7e6;border-radius:40px;padding:9px 18px;font-size:11px}.landing-glow{position:absolute;z-index:-2;border-radius:50%;filter:blur(110px);opacity:.35}.glow-one{width:500px;height:500px;background:#7418ff;right:8%;top:18%}.glow-two{width:330px;height:330px;background:#e53a79;right:-8%;bottom:-12%}.landing-copy{position:relative;z-index:2;max-width:720px;margin-top:clamp(80px,12vh,155px)}.landing-kicker{display:flex;align-items:center;gap:10px;text-transform:uppercase;letter-spacing:.16em;font-size:10px;color:#938b9e}.landing-kicker i{width:24px;height:1px;background:#cc66ff;box-shadow:0 0 8px #cc66ff}.landing-copy h1{font:400 clamp(60px,7vw,112px)/.84 "Instrument Serif";letter-spacing:-.045em;margin:28px 0 30px;max-width:850px}.landing-copy h1 em{font-weight:400;background:linear-gradient(90deg,#e8d8ff 10%,#c781ff 50%,#ff805d);background-clip:text;color:transparent}.landing-copy>p:not(.landing-kicker){max-width:470px;color:#817b88;line-height:1.7;font-size:14px}.start-button{margin-top:32px;width:168px;height:54px;border:0;border-radius:100px;color:white;background:linear-gradient(100deg,#5f23e8,#bf39e4 55%,#e65b4c);padding:4px 5px 4px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 0 45px #9b35da42;transition:.25s}.start-button:hover{transform:translateY(-2px);box-shadow:0 0 60px #b43eff70}.start-button span{font-size:13px}.start-button b{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#17101d;font-size:17px}.landing-visual{position:absolute;width:min(54vw,820px);height:min(82vh,860px);right:-2%;top:10%;display:grid;place-items:center}.landing-visual img{position:relative;z-index:1;width:72%;height:90%;object-fit:contain;filter:saturate(1.15) contrast(1.05);animation:floatCore 7s ease-in-out infinite}.visual-orbit{position:absolute;border:1px solid #a880ff35;border-radius:50%;transform:rotate(-16deg)}.orbit-a{width:72%;height:33%;box-shadow:inset 0 0 60px #782cff15}.orbit-b{width:52%;height:70%;transform:rotate(32deg);border-color:#ff668b25}.visual-label{position:absolute;z-index:2;border:1px solid #ffffff20;background:#07060a9e;backdrop-filter:blur(10px);color:#8f8798;padding:8px 11px;border-radius:4px;font:8px/1 "DM Sans";letter-spacing:.15em}.label-one{top:27%;right:7%}.label-two{bottom:25%;left:5%}.landing-footer{position:absolute;bottom:28px;left:clamp(28px,5vw,80px);right:clamp(28px,5vw,80px);display:flex;gap:34px;color:#56505d;font-size:8px;letter-spacing:.18em}.landing-footer small{margin-left:auto;font-size:8px}@keyframes floatCore{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-16px) rotate(1deg)}}
+/* Landing and sign-in screens, unchanged from the original theme (merged from the old styles/landing/theme/comfort files). */
+
+.landing-shell, .landing-shell *, .auth-shell, .auth-shell * { font-family: "Plus Jakarta Sans", Arial, sans-serif !important; }
+.landing-shell, .auth-shell { line-height: normal; }
+
+.eyebrow{font-size:11px;letter-spacing:.16em;font-weight:600;color:#678078;text-transform:uppercase}
+.muted{color:#7a837f}
+.auth-shell{display:grid;grid-template-columns:1.05fr .95fr;min-height:100vh}
+.auth-story{padding:46px 7vw;color:#f3f2e9;background:radial-gradient(circle at 70% 30%,#3e725d 0,transparent 35%),linear-gradient(145deg,#102a24,#214f41);display:flex;flex-direction:column;justify-content:space-between}
+.story-copy{max-width:620px}
+.story-copy .eyebrow{color:#a8c3b8}
+.story-copy h1{font:400 clamp(54px,7vw,96px)/.92 "Plus Jakarta Sans";letter-spacing:-.035em;margin:22px 0}
+.story-copy>p:last-child{font-size:18px;line-height:1.6;max-width:500px;color:#c3d1cb}
+.quote-card{display:flex;gap:20px;border-top:1px solid #ffffff35;padding-top:24px;max-width:520px;color:#cbd6d1}
+.quote-card span{font:50px "Plus Jakarta Sans";line-height:.8}
+.quote-card p{margin:0;line-height:1.5}
+.auth-panel{display:grid;place-items:center;padding:40px;background:#f5f3ed}
+.auth-card{width:min(440px,100%)}
+.auth-card h2{font:42px/1.05 "Plus Jakarta Sans";margin:10px 0}
+.auth-card form{margin-top:32px}
+.auth-card label{display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:600;margin-bottom:18px}
+.auth-card input{border:1px solid #d5d6cf;background:#fff;padding:14px 15px;border-radius:8px;outline:none}
+.auth-card input:focus{border-color:#2e6b57;box-shadow:0 0 0 3px #2e6b5715}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.primary-button{width:100%;border:0;border-radius:8px;background:#1d5443;color:white;padding:15px 18px;display:flex;justify-content:space-between}
+.primary-button:disabled{opacity:.6}
+.text-button{width:100%;border:0;background:none;color:#42695d;margin-top:18px}
+.error-banner{background:#f7e3df;color:#922f24;padding:12px 14px;border-radius:7px;font-size:13px}
+@media(max-width:720px){.auth-shell{grid-template-columns:1fr}.auth-story{display:none}.auth-panel{padding:24px}.field-row{grid-template-columns:1fr}}
+
+.landing-shell{position:relative;min-height:100vh;overflow:hidden;background:#030303;color:#f7f4ff;padding:32px clamp(28px,5vw,80px);isolation:isolate}.landing-shell:before{content:"";position:absolute;inset:0;z-index:-3;background:linear-gradient(90deg,#ffffff08 1px,transparent 1px),linear-gradient(#ffffff08 1px,transparent 1px);background-size:72px 72px;mask-image:linear-gradient(to right,#0008,transparent 65%)}.landing-shell:after{content:"";position:absolute;inset:0;z-index:-2;background:radial-gradient(circle at 70% 55%,transparent 0 22%,#030303 66%)}.landing-nav{height:54px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:5}.landing-nav .brand-mark{background:linear-gradient(145deg,#f3d4ff,#9d76ff);color:#100720;box-shadow:0 0 28px #b372ff80}.landing-nav .brand{color:white}.nav-note{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.26em;color:#716b7b}.landing-nav>button{border:1px solid #ffffff30;background:#ffffff09;color:#ddd7e6;border-radius:40px;padding:9px 18px;font-size:11px}.landing-glow{position:absolute;z-index:-2;border-radius:50%;filter:blur(110px);opacity:.35}.glow-one{width:500px;height:500px;background:#7418ff;right:8%;top:18%}.glow-two{width:330px;height:330px;background:#e53a79;right:-8%;bottom:-12%}.landing-copy{position:relative;z-index:2;max-width:720px;margin-top:clamp(80px,12vh,155px)}.landing-kicker{display:flex;align-items:center;gap:10px;text-transform:uppercase;letter-spacing:.16em;font-size:10px;color:#938b9e}.landing-kicker i{width:24px;height:1px;background:#cc66ff;box-shadow:0 0 8px #cc66ff}.landing-copy h1{font:400 clamp(60px,7vw,112px)/.84 "Plus Jakarta Sans";letter-spacing:-.045em;margin:28px 0 30px;max-width:850px}.landing-copy h1 em{font-weight:400;background:linear-gradient(90deg,#e8d8ff 10%,#c781ff 50%,#ff805d);background-clip:text;color:transparent}.landing-copy>p:not(.landing-kicker){max-width:470px;color:#817b88;line-height:1.7;font-size:14px}.landing-visual{position:absolute;width:min(54vw,820px);height:min(82vh,860px);right:-2%;top:10%;display:grid;place-items:center}.landing-visual img{position:relative;z-index:1;width:72%;height:90%;object-fit:contain;filter:saturate(1.15) contrast(1.05);animation:floatCore 7s ease-in-out infinite}.visual-orbit{position:absolute;border:1px solid #a880ff35;border-radius:50%;transform:rotate(-16deg)}.orbit-a{width:72%;height:33%;box-shadow:inset 0 0 60px #782cff15}.orbit-b{width:52%;height:70%;transform:rotate(32deg);border-color:#ff668b25}.visual-label{position:absolute;z-index:2;border:1px solid #ffffff20;background:#07060a9e;backdrop-filter:blur(10px);color:#8f8798;padding:8px 11px;border-radius:4px;font:8px/1 "Plus Jakarta Sans";letter-spacing:.15em}.label-one{top:27%;right:7%}.label-two{bottom:25%;left:5%}.landing-footer{position:absolute;bottom:28px;left:clamp(28px,5vw,80px);right:clamp(28px,5vw,80px);display:flex;gap:34px;color:#56505d;font-size:8px;letter-spacing:.18em}.landing-footer small{margin-left:auto;font-size:8px}@keyframes floatCore{0%,100%{translate:0 0;rotate:-1deg}50%{translate:0 -5px;rotate:1deg}}
 
 .auth-shell{background:#050505;color:#f4f0fa}.auth-story{background:radial-gradient(circle at 65% 45%,#5a168d55,transparent 38%),#050505;border-right:1px solid #ffffff12}.auth-story .story-copy .eyebrow{color:#b28dc6}.auth-story .story-copy h1{background:linear-gradient(100deg,#fff,#c594ff 65%,#ff8d70);background-clip:text;color:transparent}.auth-story .story-copy>p:last-child,.auth-story .quote-card{color:#817b88}.auth-panel{background:radial-gradient(circle at 50% 50%,#37104d32,transparent 45%),#080808}.auth-card{background:#0d0c0f;border:1px solid #ffffff14;border-radius:18px;padding:42px;box-shadow:0 30px 100px #000}.auth-card .eyebrow{color:#ad75d2}.auth-card .muted{color:#746e79}.auth-card input{background:#121115;border-color:#ffffff16;color:#f3eff7}.auth-card input:focus{border-color:#8e44d2;box-shadow:0 0 0 3px #8134bd22}.auth-card .primary-button{background:linear-gradient(100deg,#5e22d8,#ae38d1,#df594e);border-radius:30px}.auth-card .text-button{color:#a88cb9}.auth-card .error-banner{background:#3a1518;color:#ffaaa4}
 
 @media(max-width:900px){.landing-visual{opacity:.52;right:-30%;width:90vw}.landing-copy{margin-top:16vh}.landing-copy h1{font-size:clamp(58px,12vw,90px)}.nav-note,.visual-label{display:none}.landing-shell:after{background:linear-gradient(90deg,#030303 20%,transparent 80%)}}@media(max-width:620px){.landing-shell{padding:22px}.landing-nav>button{display:none}.landing-visual{width:120vw;right:-52%;top:7%;opacity:.38}.landing-copy{margin-top:20vh}.landing-copy h1{font-size:57px;line-height:.9}.landing-copy>p:not(.landing-kicker){max-width:85%}.landing-footer{left:22px;right:22px}.landing-footer span:nth-child(2),.landing-footer span:nth-child(3){display:none}.auth-card{padding:28px 22px}}
+
+
+.landing-copy h1,.auth-card h2,.story-copy h1{font-weight:300;letter-spacing:-.045em}
+.landing-copy h1 em{font-style:normal;font-weight:300}
+.eyebrow{color:#9c70ab}
+.landing-nav { justify-content: flex-end; }
+
+.landing-shell button:focus-visible, .auth-shell button:focus-visible, .auth-shell input:focus-visible { outline: 2px solid #d18ae8; outline-offset: 3px; }
+.auth-card input, .auth-card button { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.auth-card input, .primary-button { border-radius: 12px; }
+.error-banner { border-radius: 12px; line-height: 1.6; }
+.auth-card { border-radius: 24px; background: #141018; border-color: #ffffff14; box-shadow: 0 24px 64px #00000040; }
+.auth-card h2 { line-height: 1.15; }
+.auth-card .muted, .auth-story .story-copy > p:last-child, .auth-story .quote-card { color: #aaa0b2; line-height: 1.75; }
+.auth-card label { gap: 10px; margin-bottom: 20px; }
+.auth-card input { background: #1c1722; padding: 15px 16px; }
+.auth-card .primary-button { border-radius: 12px; padding: 16px 18px; }
+.landing-copy h1 { line-height: 1.02; }
+.landing-copy > p:not(.landing-kicker) { color: #aaa0b2; line-height: 1.8; }
+.landing-nav > button { border-radius: 999px; }
+.landing-nav > button { padding: 11px 20px; }
+.landing-shell { display: flex; flex-direction: column; }
+.landing-nav { flex-shrink: 0; }
+.landing-copy { flex-shrink: 0; }
+.landing-footer { position: relative; inset: auto; margin-top: auto; padding-top: 40px; flex-shrink: 0; }
+.landing-visual, .landing-glow { pointer-events: none; }
+.visual-label { border-radius: 12px; padding: 10px 14px; }
+
+@media (max-width: 620px) {
+  .landing-copy h1 { font-size: clamp(40px, 9.2vw, 57px); line-height: 1.08; }
+  .landing-copy { margin-top: 12vh; padding-bottom: 90px; }
+  .auth-panel { padding: 20px 16px; }
+  .auth-card { padding: 28px 22px; }
+}
+
+
+/* Landing fits one screen: sizes follow both width and height, so the page never scrolls. */
+.landing-shell { height: 100vh; height: 100dvh; min-height: 0; padding-top: clamp(16px, 4vh, 32px); padding-bottom: clamp(16px, 4vh, 32px); }
+.landing-copy { margin-top: clamp(12px, 8vh, 155px); padding-bottom: 0; }
+.landing-copy h1 { font-size: min(7vw, 12vh, 112px); margin: clamp(10px, 3vh, 28px) 0 clamp(10px, 3vh, 30px); }
+.landing-copy > p { margin-block: clamp(6px, 1.6vh, 14px); }
+.landing-footer { padding-top: clamp(12px, 3vh, 40px); }
+@media (max-width: 900px) {
+  .landing-copy { margin-top: clamp(12px, 10vh, 155px); }
+  .landing-copy h1 { font-size: min(12vw, 11vh, 90px); }
+}
+@media (max-width: 620px) {
+  .landing-copy { margin-top: clamp(12px, 8vh, 155px); padding-bottom: 0; }
+  .landing-copy h1 { font-size: min(13vw, 9vh, 57px); line-height: 1.08; }
+}
+
+/* Colorful call-to-action (ButtonColorful from the shared prompt, rebuilt in plain CSS). */
+.colorful-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  margin-top: clamp(14px, 3.5vh, 32px);
+  padding: 0 26px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 14px;
+  background: #18181b;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all .2s;
+}
+.colorful-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #6366f1, #a855f7, #ec4899);
+  opacity: .4;
+  filter: blur(8px);
+  transition: opacity .5s;
+}
+.colorful-button:hover .colorful-glow,
+.colorful-button:focus-visible .colorful-glow { opacity: .8; }
+.colorful-button:focus-visible { outline: 2px solid #d18ae8; outline-offset: 2px; }
+.colorful-content { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.colorful-content .icon { width: 16px; height: 16px; stroke-width: 2; color: rgb(255 255 255 / 90%); }
+
+/* Idle float uses `translate`/`rotate`; mouse parallax + tilt is written to `transform` from JS, so the two compose. */
+.landing-visual img { will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .landing-visual img { animation: none; } }
+
+/* Interactive hover button (plain-CSS port of the shadcn interactive-hover-button): dot expands to fill, label slides out, arrow label slides in. */
+.landing-actions { display: flex; gap: 10px; }
+.hover-button { --hb-primary: #b372ff; position: relative; overflow: hidden; min-width: 128px; padding: 10px 22px 10px 30px; border: 1px solid #ffffff30; border-radius: 999px; background: #0b0a0e; color: #ddd7e6; font-size: 13px; font-weight: 600; text-align: center; white-space: nowrap; cursor: pointer; }
+.hover-button-label, .hover-button-reveal, .hover-button-dot { transition: all .3s ease; }
+.hover-button-label { display: inline-block; transform: translateX(4px); }
+.hover-button-reveal { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 8px; color: #100720; opacity: 0; transform: translateX(48px); }
+.hover-button-reveal .icon { width: 16px; height: 16px; }
+.hover-button-dot { position: absolute; left: 14px; top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 8px; background: var(--hb-primary); }
+.hover-button:hover .hover-button-label, .hover-button:focus-visible .hover-button-label { transform: translateX(48px); opacity: 0; }
+.hover-button:hover .hover-button-reveal, .hover-button:focus-visible .hover-button-reveal { transform: translateX(-4px); opacity: 1; }
+.hover-button:hover .hover-button-dot, .hover-button:focus-visible .hover-button-dot { left: 0; top: 0; width: 100%; height: 100%; transform: scale(1.8); }
+@media (prefers-reduced-motion: reduce) { .hover-button-label, .hover-button-reveal, .hover-button-dot { transition: none; } }
+@media (max-width: 620px) { .hover-button { min-width: 0; padding: 9px 16px 9px 26px; font-size: 12px; } .hover-button-dot { left: 11px; } }

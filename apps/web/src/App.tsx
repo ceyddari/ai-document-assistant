@@ -1,6 +1,6 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "./api";
-import type { AuthSession, Conversation, ConversationDetail, DocumentItem, Message, Source } from "./types";
+import type { AuthSession, Conversation, ConversationDetail, DocumentItem, Folder, Message, Source } from "./types";
 
 const SESSION_KEY = "atlas-session";
 
@@ -17,31 +17,122 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
-function LandingScreen({ onStart, hasSession }: { onStart: () => void; hasSession: boolean }) {
+const ICONS = {
+  plus: "M12 5v14M5 12h14",
+  upload: "M12 15V4m0 0L8 8m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3",
+  send: "M12 19V5m0 0-6 6m6-6 6 6",
+  panelLeft: "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM9.5 4v16",
+  panelRight: "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM14.5 4v16",
+  logout: "M14 12H4m0 0 3.5-3.5M4 12l3.5 3.5M12 4h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6",
+  file: "M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M9.5 13h5M9.5 16.5h5",
+  retry: "M20 11a8 8 0 0 0-14.3-4.9L4 8m0-4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16m0 4v-4h-4",
+  close: "M6 6l12 12M18 6 6 18",
+  chevron: "M9 6l6 6-6 6",
+  folder: "M3.5 7a1.5 1.5 0 0 1 1.5-1.5h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z",
+  check: "M5 12.5 10 17 19 7",
+  home: "M4 11.5 12 5l8 6.5M6.5 10v9h11v-9M10 19v-5h4v5",
+  arrowUpRight: "M7 7h10v10M7 17 17 7",
+  arrowRight: "M5 12h14m0 0-6-6m6 6-6 6",
+} as const;
+
+function Icon({ name }: { name: keyof typeof ICONS }) {
+  return <svg className="icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[name]} /></svg>;
+}
+
+const SUGGESTIONS = [
+  { title: "Genel bir özet çıkar", hint: "Dokümanlardaki ana fikirleri kısaca topla", question: "Dokümanlardaki en önemli noktaları özetle." },
+  { title: "Süreçleri bul", hint: "Adımları ve sorumlulukları listele", question: "Bu dokümanlarda hangi süreçler anlatılıyor?" },
+];
+
+const STATUS_LABELS: Record<DocumentItem["status"], string> = {
+  ready: "Hazır",
+  failed: "İşlenemedi",
+  pending: "Sırada",
+  processing: "İşleniyor",
+};
+
+function formatSize(bytes: number) {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+// Spring-follows the cursor over the image's area (max 20px shift, ±5° tilt); off on touch and reduced motion.
+function useLotusMotion() {
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const img = ref.current, area = img?.parentElement;
+    if (!img || !area || !matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const target = { x: 0, y: 0 }, pos = { x: 0, y: 0 }, vel = { x: 0, y: 0 };
+    let frame = 0, last = 0;
+    const step = (now: number) => {
+      const dt = Math.min((now - last) / 1000, 1 / 30); last = now;
+      for (const k of ["x", "y"] as const) { vel[k] += (70 * (target[k] - pos[k]) - 14 * vel[k]) * dt; pos[k] += vel[k] * dt; }
+      img.style.transform = `perspective(900px) translate3d(${pos.x * 20}px, ${pos.y * 20}px, 0) rotateX(${-pos.y * 5}deg) rotateY(${pos.x * 5}deg)`;
+      const settled = Math.abs(target.x - pos.x) + Math.abs(target.y - pos.y) + Math.abs(vel.x) + Math.abs(vel.y) < 0.001;
+      frame = settled ? 0 : requestAnimationFrame(step);
+    };
+    const aim = (x: number, y: number) => {
+      target.x = x; target.y = y;
+      if (!frame) { last = performance.now(); frame = requestAnimationFrame(step); }
+    };
+    // The visual has pointer-events: none (it overlaps the copy), so track on window and test against its rect.
+    const onMove = (e: PointerEvent) => {
+      const r = area.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      aim(inside ? ((e.clientX - r.left) / r.width) * 2 - 1 : 0, inside ? ((e.clientY - r.top) / r.height) * 2 - 1 : 0);
+    };
+    const reset = () => aim(0, 0);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("mouseleave", reset);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("mouseleave", reset);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+  return ref;
+}
+
+function HoverButton({ text, onClick }: { text: string; onClick: () => void }) {
+  return <button className="hover-button" onClick={onClick}>
+    <span className="hover-button-label">{text}</span>
+    <span className="hover-button-reveal" aria-hidden="true">{text}<Icon name="arrowRight" /></span>
+    <span className="hover-button-dot" aria-hidden="true" />
+  </button>;
+}
+
+type AuthMode = "login" | "register";
+
+function LandingScreen({ onStart, hasSession }: { onStart: (mode?: AuthMode) => void; hasSession: boolean }) {
+  const lotusRef = useLotusMotion();
   return <main className="landing-shell">
     <nav className="landing-nav">
       <span className="nav-note">AI DOCUMENT INTELLIGENCE</span>
-      <button onClick={onStart}>{hasSession ? "Uygulamaya dön" : "Giriş yap"}</button>
+      <div className="landing-actions">
+        {hasSession
+          ? <HoverButton text="Uygulamaya dön" onClick={() => onStart()} />
+          : <><HoverButton text="Giriş yap" onClick={() => onStart("login")} /><HoverButton text="Kayıt ol" onClick={() => onStart("register")} /></>}
+      </div>
     </nav>
     <div className="landing-glow glow-one" /><div className="landing-glow glow-two" />
     <section className="landing-copy">
       <p className="landing-kicker"><i /> Kurumsal bilginin yeni formu</p>
       <h1>Bilginiz.<br /><em>Canlı, bağlantılı</em><br />ve erişilebilir.</h1>
       <p>Dağınık dokümanlarınızı kaynaklarıyla konuşabilen güvenilir bir bilgi merkezine dönüştürün.</p>
-      <button className="start-button" onClick={onStart}><span>{hasSession ? "Dokümanlara git" : "Başla"}</span><b>↗</b></button>
+      <button className="colorful-button" onClick={() => onStart()}>
+        <span className="colorful-glow" aria-hidden="true" />
+        <span className="colorful-content">{hasSession ? "Dokümanlara git" : "Başla"}<Icon name="arrowUpRight" /></span>
+      </button>
     </section>
     <section className="landing-visual" aria-hidden="true">
       <div className="visual-orbit orbit-a" /><div className="visual-orbit orbit-b" />
-      <img src="/atlas-knowledge-core.png" alt="" />
-      <span className="visual-label label-one">15 CHUNKS INDEXED</span>
-      <span className="visual-label label-two">SOURCE VERIFIED</span>
+      <img ref={lotusRef} src="/atlas-knowledge-core.png" alt="" />
     </section>
     <footer className="landing-footer"><span>DOCUMENTS</span><span>KNOWLEDGE</span><span>CONVERSATIONS</span></footer>
   </main>;
 }
 
-function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: AuthSession) => void }) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+function AuthScreen({ onAuthenticated, initialMode }: { onAuthenticated: (session: AuthSession) => void; initialMode: AuthMode }) {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -94,36 +185,83 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: AuthSessio
 
 function SourceList({ sources }: { sources: Source[] }) {
   if (!sources.length) return null;
-  return <div className="sources">{sources.map((source, index) => <details key={source.chunk_id}>
-    <summary><span>{index + 1}</span>{source.filename} · Sayfa {source.page_number}<b>%{Math.round(source.similarity * 100)}</b></summary>
-    <p>{source.content}</p>
-  </details>)}</div>;
+  return <div className="sources">
+    <p className="sources-label">Kaynaklar</p>
+    {sources.map((source, index) => <details className="source" key={source.chunk_id}>
+      <summary>
+        <span className="cite">{index + 1}</span>
+        <span className="source-name" title={source.filename}>{source.filename}</span>
+        <span className="source-page">s. {source.page_number}</span>
+        <span className="source-score" title="Benzerlik">%{Math.round(source.similarity * 100)}</span>
+      </summary>
+      <blockquote>{source.content}</blockquote>
+    </details>)}
+  </div>;
 }
 
 function renderInlineFormatting(content: string): ReactNode[] {
-  return content.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+  return content.split(/(\*\*[^*]+\*\*|\[Kaynak\s*\d+\])/g).map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong>;
     }
+    const citation = /^\[Kaynak\s*(\d+)\]$/.exec(part);
+    if (citation) return <span key={`${part}-${index}`} className="cite" title={`Kaynak ${citation[1]}`}>{citation[1]}</span>;
     return part;
   });
 }
 
 function MessageContent({ content }: { content: string }) {
   return <div className="message-content">{content.split("\n").map((line, index) => (
-    <p key={`${index}-${line}`} className={/^\s*[-•]\s/.test(line) ? "bullet-line" : undefined}>
+    <p key={`${index}-${line}`} className={/^\s*[-•*]\s/.test(line) ? "bullet-line" : undefined}>
       {renderInlineFormatting(line)}
     </p>
   ))}</div>;
 }
 
+function FolderModal({ onClose, onCreate }: { onClose: () => void; onCreate: (name: string) => Promise<void> }) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const value = name.trim();
+    if (!value || saving) return;
+    if (value.includes("@")) { setError("Klasör adı @ içeremez."); return; }
+    setSaving(true); setError("");
+    try { await onCreate(value); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Klasör oluşturulamadı."); setSaving(false); }
+  }
+  return <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <form className="modal" role="dialog" aria-modal="true" aria-labelledby="folder-modal-title" onSubmit={submit}>
+      <h2 id="folder-modal-title">Yeni klasör</h2>
+      <input autoFocus value={name} maxLength={50} onChange={event => setName(event.target.value)} placeholder="Klasör adı" aria-label="Klasör adı" />
+      {error && <p className="modal-error" role="alert">{error}</p>}
+      <div className="modal-actions">
+        <button type="button" className="button soft" onClick={onClose}>Vazgeç</button>
+        <button className="button primary" disabled={!name.trim() || saving}>{saving ? "Oluşturuluyor…" : "Oluştur"}</button>
+      </div>
+    </form>
+  </div>;
+}
+
 function App() {
   const [session, setSession] = useState<AuthSession | null>(readSession);
   const [started, setStarted] = useState(() => readSession() !== null);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 720);
   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 1050);
   const [organizationId, setOrganizationId] = useState("");
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
+  const [folderMenu, setFolderMenu] = useState<{ documentId: string; top?: number; bottom?: number; right: number } | null>(null);
+  // undefined = closed; null = opened from the sidebar; string = opened from that document's menu, which then moves into the new folder.
+  const [folderModalFor, setFolderModalFor] = useState<string | null | undefined>(undefined);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [active, setActive] = useState<ConversationDetail | null>(null);
   const [question, setQuestion] = useState("");
@@ -153,6 +291,12 @@ function App() {
     } catch (caught) { handleError(caught); }
   }, [session, organizationId, handleError]);
 
+  const refreshFolders = useCallback(async () => {
+    if (!session || !organizationId) return;
+    try { setFolders((await api.folders(organizationId, session.access_token)).items); }
+    catch (caught) { handleError(caught); }
+  }, [session, organizationId, handleError]);
+
   const refreshConversations = useCallback(async () => {
     if (!session || !organizationId) return;
     try {
@@ -162,8 +306,8 @@ function App() {
   }, [session, organizationId, handleError]);
 
   const refresh = useCallback(async () => {
-    await Promise.all([refreshDocuments(), refreshConversations()]);
-  }, [refreshDocuments, refreshConversations]);
+    await Promise.all([refreshDocuments(), refreshConversations(), refreshFolders()]);
+  }, [refreshDocuments, refreshConversations, refreshFolders]);
 
   useEffect(() => { if (session && !organizationId) setOrganizationId(session.organization_id ?? session.organization_ids[0] ?? ""); }, [session, organizationId]);
   useEffect(() => { void refresh(); }, [refresh]);
@@ -233,6 +377,47 @@ function App() {
     finally { setUploading(false); if (fileInput.current) fileInput.current.value = ""; }
   }
 
+  async function addFolder(name: string) {
+    if (!session) return;
+    try {
+      const folder = await api.createFolder(organizationId, name, session.access_token);
+      setFolders(current => [...current, folder].sort((a, b) => a.name.localeCompare(b.name, "tr")));
+      const documentId = folderModalFor;
+      setFolderModalFor(undefined);
+      if (documentId) await moveDocument(documentId, folder.id);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) { logout(); return; }
+      throw caught; // shown inside the modal
+    }
+  }
+  function openFolderMenu(documentId: string, button: HTMLElement) {
+    if (folderMenu?.documentId === documentId) { setFolderMenu(null); return; }
+    const rect = button.getBoundingClientRect();
+    const right = window.innerWidth - rect.right;
+    // Open upwards near the bottom of the screen so the menu is not cut off.
+    setFolderMenu(rect.bottom > window.innerHeight - 260
+      ? { documentId, bottom: window.innerHeight - rect.top + 6, right }
+      : { documentId, top: rect.bottom + 6, right });
+  }
+  async function removeFolder(folder: Folder) {
+    if (!session || !window.confirm(`"${folder.name}" klasörü silinsin mi? Dokümanlar silinmez.`)) return; setError("");
+    try {
+      await api.deleteFolder(organizationId, folder.id, session.access_token);
+      setFolders(current => current.filter(item => item.id !== folder.id));
+      setDocuments(current => current.map(item => item.folder_id === folder.id ? { ...item, folder_id: null } : item));
+    } catch (caught) { handleError(caught); }
+  }
+  async function moveDocument(documentId: string, folderId: string | null) {
+    if (!session) return; setError("");
+    try {
+      const document = await api.moveDocument(organizationId, documentId, folderId, session.access_token);
+      setDocuments(current => current.map(item => item.id === document.id ? document : item));
+    } catch (caught) { handleError(caught); }
+  }
+  function mentionFolder(folder: Folder) {
+    setQuestion(current => `${current}${current && !current.endsWith(" ") ? " " : ""}@${folder.name} `);
+  }
+
   async function retryDocument(documentId: string) {
     if (!session || retryingDocumentId) return;
     setRetryingDocumentId(documentId); setError("");
@@ -247,46 +432,146 @@ function App() {
     finally { setRetryingDocumentId(null); }
   }
 
-  if (!started) return <LandingScreen onStart={() => setStarted(true)} hasSession={session !== null} />;
-  if (!session) return <AuthScreen onAuthenticated={authenticated} />;
-  if (!organizationId) return <main className="empty-page"><h2>Bu hesaba bağlı bir organizasyon bulunamadı.</h2><button onClick={logout}>Çıkış yap</button></main>;
+  useEffect(() => {
+    if (!folderMenu) return;
+    const close = (event: Event) => {
+      if (event instanceof MouseEvent && (event.target as Element).closest(".folder-menu, .folder-button")) return;
+      setFolderMenu(null);
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setFolderMenu(null); };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [folderMenu]);
+  const closeFolderModal = useCallback(() => setFolderModalFor(undefined), []);
+  const menuDocument = folderMenu ? documents.find(item => item.id === folderMenu.documentId) : undefined;
 
-  return <main className={`app-shell${sidebarOpen ? "" : " sidebar-closed"}${libraryOpen ? "" : " library-closed"}`}>
+  if (!started) return <LandingScreen onStart={mode => { setAuthMode(mode ?? "login"); setStarted(true); }} hasSession={session !== null} />;
+  if (!session) return <AuthScreen onAuthenticated={authenticated} initialMode={authMode} />;
+  if (!organizationId) return <main className="empty-page"><h2>Bu hesaba bağlı bir organizasyon bulunamadı.</h2><button className="button soft" onClick={logout}>Çıkış yap</button></main>;
+
+  function toggleFolder(folderId: string) {
+    setCollapsedFolders(current => {
+      const next = new Set(current);
+      if (!next.delete(folderId)) next.add(folderId);
+      return next;
+    });
+  }
+  const renderDocument = (document: DocumentItem) => <li className="document" key={document.id}>
+    <span className="file-icon" aria-hidden="true"><Icon name="file" /></span>
+    <div>
+      <span className="document-name" title={document.original_filename}>{document.original_filename}</span>
+      <div className="document-meta">
+        <span className={`status ${document.status}`}>{STATUS_LABELS[document.status]}</span>
+        <span>{formatSize(document.size_bytes)}</span>
+        <span>{formatDate(document.created_at)}</span>
+      </div>
+      {document.status === "failed" && document.error_message && <p className="document-error">{document.error_message}</p>}
+      {document.status === "failed" && <button className="retry-button" disabled={retryingDocumentId !== null} onClick={() => void retryDocument(document.id)}><Icon name="retry" />{retryingDocumentId === document.id ? "Başlatılıyor…" : "Yeniden dene"}</button>}
+    </div>
+    <button type="button" className={`folder-button${folderMenu?.documentId === document.id ? " open" : ""}`} aria-haspopup="menu" aria-expanded={folderMenu?.documentId === document.id} aria-label="Klasöre taşı" title="Klasöre taşı" onClick={event => openFolderMenu(document.id, event.currentTarget)}><Icon name="folder" /></button>
+  </li>;
+  const hasReadyDocument = documents.some(document => document.status === "ready");
+  const closeOverlays = () => {
+    if (window.innerWidth <= 720) setSidebarOpen(false);
+    if (window.innerWidth <= 1050) setLibraryOpen(false);
+  };
+
+  return <main className={`app${sidebarOpen ? "" : " no-sidebar"}${libraryOpen ? "" : " no-library"}`}>
     <aside id="conversation-sidebar" className="sidebar" hidden={!sidebarOpen}>
-      <button className="home-link" onClick={() => setStarted(false)}><span>⌂</span> Ana sayfa</button>
-      <button className="new-chat" onClick={() => { activeConversationId.current = null; setActive(null); }}><span>＋</span> Yeni konuşma</button>
-      <div className="sidebar-title">Konuşmalar</div>
-      <nav>{conversations.map(item => <button key={item.id} className={active?.id === item.id ? "active" : ""} onClick={() => void openConversation(item)}>
-        <span className="chat-icon">◇</span><span><b>{item.title ?? "Başlıksız konuşma"}</b><small>{formatDate(item.updated_at)}</small></span>
-      </button>)}</nav>
-      <div className="user-card"><div className="avatar">{session.user.email[0].toUpperCase()}</div><div><b>{session.user.email.split("@")[0]}</b><small>{session.user.email}</small></div><button title="Çıkış yap" onClick={logout}>↗</button></div>
+      <button className="home-link" onClick={() => setStarted(false)}><Icon name="home" />Ana sayfa</button>
+      <button className="button primary new-chat" onClick={() => { activeConversationId.current = null; setActive(null); closeOverlays(); }}><Icon name="plus" />Yeni konuşma</button>
+      <h2 className="sidebar-heading">Konuşmalar</h2>
+      <nav className="conversation-list" aria-label="Konuşmalar">
+        {conversations.length ? conversations.map(item => <button key={item.id} className={`conversation-item${active?.id === item.id ? " active" : ""}`} aria-current={active?.id === item.id ? "page" : undefined} onClick={() => { closeOverlays(); void openConversation(item); }}>
+          <span className="conversation-title">{item.title ?? "Başlıksız konuşma"}</span>
+          <span className="conversation-date">{formatDate(item.updated_at)}</span>
+        </button>) : <p className="sidebar-empty">Sorduğunuz sorular burada listelenir.</p>}
+      </nav>
+      <div className="account">
+        <span className="avatar" aria-hidden="true">{session.user.email[0].toUpperCase()}</span>
+        <span className="account-email" title={session.user.email}>{session.user.email}</span>
+        <button className="icon-button" title="Çıkış yap" aria-label="Çıkış yap" onClick={logout}><Icon name="logout" /></button>
+      </div>
     </aside>
     <section className="workspace">
-      <header>
-        <div className="workspace-navigation">
-          <button className="panel-toggle" type="button" aria-controls="conversation-sidebar" aria-expanded={sidebarOpen} aria-label={sidebarOpen ? "Konuşma panelini kapat" : "Konuşma panelini aç"} title={sidebarOpen ? "Konuşma panelini kapat" : "Konuşma panelini aç"} onClick={() => setSidebarOpen(value => !value)}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={sidebarOpen ? "M15 6 7 12 15 18Z" : "M9 6 17 12 9 18Z"} /></svg>
-          </button>
-          <span className="workspace-status"><span className="status-dot" /> Bilgi merkezi aktif</span>
-        </div>
+      <header className="workspace-header">
+        <button className="icon-button" type="button" aria-controls="conversation-sidebar" aria-expanded={sidebarOpen} aria-label={sidebarOpen ? "Konuşma panelini kapat" : "Konuşma panelini aç"} title={sidebarOpen ? "Konuşma panelini kapat" : "Konuşma panelini aç"} onClick={() => setSidebarOpen(value => !value)}><Icon name="panelLeft" /></button>
+        <h1 className="workspace-title">{active?.title ?? "Yeni konuşma"}</h1>
         <div className="header-actions">
-          <button onClick={() => fileInput.current?.click()} disabled={uploading}>⌁ {uploading ? "Yükleniyor…" : "PDF yükle"}</button>
-          <button className="panel-toggle" type="button" aria-controls="document-sidebar" aria-expanded={libraryOpen} aria-label={libraryOpen ? "Doküman panelini kapat" : "Doküman panelini aç"} title={libraryOpen ? "Doküman panelini kapat" : "Doküman panelini aç"} onClick={() => setLibraryOpen(value => !value)}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={libraryOpen ? "M9 6 17 12 9 18Z" : "M15 6 7 12 15 18Z"} /></svg>
-          </button>
+          <button className="button soft" onClick={() => fileInput.current?.click()} disabled={uploading} aria-label="PDF yükle"><Icon name="upload" /><span>{uploading ? "Yükleniyor…" : "PDF yükle"}</span></button>
+          <button className="icon-button" type="button" aria-controls="document-sidebar" aria-expanded={libraryOpen} aria-label={libraryOpen ? "Doküman panelini kapat" : "Doküman panelini aç"} title={libraryOpen ? "Doküman panelini kapat" : "Doküman panelini aç"} onClick={() => setLibraryOpen(value => !value)}><Icon name="panelRight" /></button>
           <input ref={fileInput} hidden type="file" accept="application/pdf,.pdf" onChange={event => void upload(event.target.files?.[0])} />
         </div>
       </header>
-      {error && <div className="global-error">{error}<button onClick={() => setError("")}>×</button></div>}
+      {error && <div className="alert" role="alert"><span>{error}</span><button className="icon-button" aria-label="Uyarıyı kapat" onClick={() => setError("")}><Icon name="close" /></button></div>}
       <div className="content">
         {!visibleMessages.length ? <section className="welcome">
-          <p className="eyebrow">KAYNAKLARINIZA DAYALI YANITLAR</p><h1>Bugün neyi<br /><em>keşfedelim?</em></h1><p>Dokümanlarınızdaki bilgileri sorun; yanıtları kaynaklarıyla birlikte inceleyin.</p>
-          <div className="suggestions"><button onClick={() => setQuestion("Dokümanlardaki en önemli noktaları özetle.")}><span>01</span><b>Genel bir özet çıkar</b><small>Belgelerdeki ana fikirleri keşfet</small></button><button onClick={() => setQuestion("Bu dokümanlarda hangi süreçler anlatılıyor?")}><span>02</span><b>Süreçleri bul</b><small>Adımları ve sorumlulukları listele</small></button></div>
-        </section> : <section className="conversation-view"><div className="conversation-heading"><p className="eyebrow">KONUŞMA</p><h2>{active?.title ?? "Yeni konuşma"}</h2></div><div className="message-list">{visibleMessages.map(message => <article key={message.id} className={`message ${message.role}`}>{message.role === "user" && <div className="message-avatar" aria-hidden="true">{session.user.email[0].toUpperCase()}</div>}<div className="message-column"><div className="message-role">{message.role === "user" ? "Siz" : "Asistan"}</div><div className="message-body"><MessageContent content={message.content} /><SourceList sources={message.sources} /></div></div></article>)}{asking && pendingMessage?.conversationId === (active?.id ?? null) && <div className="thinking"><div><i /><i /><i /> Kaynaklar taranıyor</div></div>}<div ref={conversationEnd} /></div></section>}
+          <h2>Ne öğrenmek istersiniz?</h2>
+          <p>{hasReadyDocument
+            ? "Dokümanlarınızla ilgili bir soru yazın. Her cevabın altında kullanılan sayfaları görürsünüz."
+            : "Başlamak için bir PDF yükleyin. Doküman işlendiğinde sorularınızı yanıtlamaya hazır olur."}</p>
+          <div className="suggestions">{SUGGESTIONS.map(item => <button key={item.title} className="suggestion" onClick={() => setQuestion(item.question)}><b>{item.title}</b><span>{item.hint}</span></button>)}</div>
+        </section> : <div className="message-list">
+          {visibleMessages.map(message => <article key={message.id} className={`message ${message.role}`} aria-label={message.role === "user" ? "Sorunuz" : "Asistanın cevabı"}>
+            {message.role === "user"
+              ? <div className="bubble">{message.content}</div>
+              : <><MessageContent content={message.content} /><SourceList sources={message.sources} /></>}
+          </article>)}
+          {asking && pendingMessage?.conversationId === (active?.id ?? null) && <div className="thinking" role="status"><span className="dots" aria-hidden="true"><i /><i /><i /></span>Kaynaklar taranıyor</div>}
+          <div ref={conversationEnd} />
+        </div>}
       </div>
-      <footer className="composer-area"><form className="composer" onSubmit={ask}><textarea value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Dokümanlarınız hakkında bir soru sorun…" rows={1} /><button disabled={asking || !question.trim()} aria-label="Gönder">↑</button></form><p>Yanıtlar yalnızca yüklediğiniz dokümanlara dayanır ve kaynaklarıyla gösterilir.</p></footer>
+      <footer className="composer-area">
+        {folders.length > 0 && <div className="folder-chips" aria-label="Klasöre atıf yap">{folders.map(folder => <button type="button" key={folder.id} className="folder-chip" onClick={() => mentionFolder(folder)}>@{folder.name}</button>)}</div>}
+        <form className="composer" onSubmit={ask}>
+          <textarea value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Dokümanlarınız hakkında bir soru sorun…" aria-label="Sorunuz" rows={1} />
+          <button className="send-button" disabled={asking || !question.trim()} aria-label="Gönder" title="Gönder"><Icon name="send" /></button>
+        </form>
+        <p className="composer-note">Yanıtlar yalnızca yüklediğiniz dokümanlara dayanır.</p>
+      </footer>
     </section>
-    <aside id="document-sidebar" className="library" hidden={!libraryOpen}><div className="library-head"><div><p className="eyebrow">KÜTÜPHANE</p><h3>Dokümanlar</h3></div><span>{documents.length}</span></div><div className="document-list">{documents.length ? documents.map(document => <div className="document-card" key={document.id}><div className="pdf-icon">PDF</div><div><b title={document.original_filename}>{document.original_filename}</b><small>{(document.size_bytes / 1024).toFixed(0)} KB · {formatDate(document.created_at)}</small><span className={`status ${document.status}`} title={document.error_message ?? undefined}>{document.status === "ready" ? "Hazır" : document.status === "failed" ? "İşlenemedi" : document.status === "pending" ? "Sırada" : "İşleniyor"}</span>{document.status === "failed" && document.error_message && <small className="document-error">{document.error_message}</small>}{document.status === "failed" && <button className="retry-document" disabled={retryingDocumentId !== null} onClick={() => void retryDocument(document.id)}>{retryingDocumentId === document.id ? "Tekrar başlatılıyor…" : "Tekrar dene"}</button>}</div></div>) : <div className="empty-library"><div>⌁</div><p>Henüz doküman yok</p><small>İlk PDF’inizi yükleyin</small></div>}</div><button className="library-upload" onClick={() => fileInput.current?.click()} disabled={uploading}>＋ Doküman ekle</button></aside>
+    <aside id="document-sidebar" className="library" hidden={!libraryOpen}>
+      <div className="library-head"><h2>Dokümanlar</h2><span className="count">{documents.length}</span></div>
+      <button className="button soft library-folder" onClick={() => setFolderModalFor(null)}><Icon name="folder" />Klasör oluştur</button>
+      {documents.length || folders.length ? <div className="document-list">
+        {folders.map(folder => {
+          const open = !collapsedFolders.has(folder.id);
+          const folderDocuments = documents.filter(item => item.folder_id === folder.id);
+          return <section className="folder-group" key={folder.id}>
+            <div className="folder-row">
+              <button type="button" className="folder-toggle" aria-expanded={open} onClick={() => toggleFolder(folder.id)}>
+                <Icon name="folder" /><span className="folder-name" title={folder.name}>{folder.name}</span>
+                <span className="folder-count">{folderDocuments.length}</span>
+                <span className={`folder-chevron${open ? " open" : ""}`}><Icon name="chevron" /></span>
+              </button>
+              <button type="button" className="folder-delete" aria-label={`${folder.name} klasörünü sil`} title="Klasörü sil" onClick={() => void removeFolder(folder)}><Icon name="close" /></button>
+            </div>
+            {open && (folderDocuments.length
+              ? <ul className="folder-documents">{folderDocuments.map(renderDocument)}</ul>
+              : <p className="folder-empty">Bu klasör boş.</p>)}
+          </section>;
+        })}
+        {documents.some(item => !item.folder_id) && <ul className="folder-documents loose">{documents.filter(item => !item.folder_id).map(renderDocument)}</ul>}
+      </div> : <div className="library-empty"><p>Henüz doküman yok.</p><p>Yüklediğiniz PDF’ler burada listelenir.</p></div>}
+      <button className="button soft library-upload" onClick={() => fileInput.current?.click()} disabled={uploading}><Icon name="plus" />Doküman ekle</button>
+    </aside>
+    {folderMenu && menuDocument && <div className="folder-menu" role="menu" style={{ top: folderMenu.top, bottom: folderMenu.bottom, right: folderMenu.right }}>
+      {folders.map(folder => <button key={folder.id} type="button" role="menuitem" onClick={() => { setFolderMenu(null); void moveDocument(menuDocument.id, menuDocument.folder_id === folder.id ? null : folder.id); }}>
+        <Icon name="folder" /><span>{folder.name}</span>{menuDocument.folder_id === folder.id && <span className="folder-menu-check"><Icon name="check" /></span>}
+      </button>)}
+      {folders.length > 0 && <hr />}
+      <button type="button" role="menuitem" className="folder-menu-create" onClick={() => { setFolderMenu(null); setFolderModalFor(menuDocument.id); }}><Icon name="plus" /><span>Yeni klasör oluştur</span></button>
+    </div>}
+    {folderModalFor !== undefined && <FolderModal onClose={closeFolderModal} onCreate={addFolder} />}
+    <button className="scrim" aria-label="Paneli kapat" tabIndex={-1} onClick={closeOverlays} />
   </main>;
 }
 

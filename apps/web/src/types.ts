@@ -11,6 +11,7 @@ export type DocumentStatus = "pending" | "processing" | "ready" | "failed";
 export type DocumentItem = {
   id: string;
   organization_id: string;
+  folder_id: string | null;
   original_filename: string;
   content_type: string;
   size_bytes: number;
@@ -34,8 +35,10 @@ export type Message = {
   content: string;
   sequence: number;
   created_at: string;
+  feedback?: Feedback;
   sources: Source[];
 };
+export type Feedback = 1 | -1 | null;
 export type Conversation = {
   id: string;
   organization_id: string;
@@ -52,3 +55,4 @@ export type AskResponse = {
   answer: string;
   sources: Source[];
 };
+export type Folder = { id: string; name: string; created_at: string };
