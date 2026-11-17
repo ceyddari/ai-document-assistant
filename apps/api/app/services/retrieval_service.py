@@ -1,12 +1,24 @@
+import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import Row, Text, cast, func, literal_column, select
+from sqlalchemy.dialects.postgresql import TSQUERY
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Document, DocumentChunk, DocumentStatus, Organization
+from app.models import TEXT_SEARCH_CONFIG, Document, DocumentChunk, DocumentStatus, Organization
 from app.services.document_service import OrganizationNotFoundError
 from app.services.embedding_service import EmbeddingService
+
+# Keyword matches add a bonus on top of vector similarity instead of competing by rank.
+# Rank fusion (RRF) was measured worse: it erases vector confidence, and ts_rank has no IDF,
+# so common words outvote rare exact terms. 0.05 was the only value with hit@5 = 100% on
+# storage/eval (0-0.15 within one case of each other; 0.2+ hurts). It mainly rescues exact
+# titles/codes that vectors miss. Re-run scripts/evaluate_retrieval.py before changing it.
+KEYWORD_SCORE_WEIGHT = 0.05
+MIN_CANDIDATES_PER_RETRIEVER = 20
+CANDIDATES_PER_RESULT = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +31,43 @@ class RetrievedChunk:
     similarity: float
 
 
+def fuse_scores(
+    vector_rows: Sequence[Row],
+    keyword_rows: Sequence[Row],
+    *,
+    limit: int,
+) -> list[RetrievedChunk]:
+    """Rank the union by similarity + KEYWORD_SCORE_WEIGHT * keyword score.
+
+    vector_rows are (chunk, filename, distance); keyword_rows add a keyword score in [0, 1).
+    Ties fall back to chunk id so the order is deterministic.
+    """
+    rows_by_id: dict[UUID, Row] = {row[0].id: row for row in vector_rows}
+    keyword_scores: dict[UUID, float] = {}
+
+    for row in keyword_rows:
+        rows_by_id.setdefault(row[0].id, row)
+        keyword_scores[row[0].id] = float(row[3])
+
+    def score(chunk_id: UUID) -> float:
+        similarity = 1.0 - float(rows_by_id[chunk_id][2])
+        return similarity + KEYWORD_SCORE_WEIGHT * keyword_scores.get(chunk_id, 0.0)
+
+    ordered_ids = sorted(rows_by_id, key=lambda chunk_id: (-score(chunk_id), str(chunk_id)))
+
+    return [
+        RetrievedChunk(
+            chunk_id=row[0].id,
+            document_id=row[0].document_id,
+            filename=row[1],
+            page_number=row[0].page_number,
+            content=row[0].content,
+            similarity=min(max(1.0 - float(row[2]), 0.0), 1.0),
+        )
+        for row in (rows_by_id[chunk_id] for chunk_id in ordered_ids[:limit])
+    ]
+
+
 async def search_relevant_chunks(
     *,
     organization_id: UUID,
@@ -27,7 +76,17 @@ async def search_relevant_chunks(
     embedding_service: EmbeddingService,
     limit: int = 5,
     minimum_similarity: float = 0.35,
+    folder_ids: list[UUID] | None = None,
+    document_ids: list[UUID] | None = None,
 ) -> list[RetrievedChunk]:
+    """Hybrid search: vector similarity boosted by Turkish full-text matches.
+
+    Keyword matches skip the similarity threshold on purpose: exact terms such as codes,
+    names or titles are what vectors miss.
+    """
+    # NFD input (e.g. typed on macOS) would never match NFC document text in full-text search.
+    query = unicodedata.normalize("NFC", query)
+
     if not query.strip():
         raise ValueError("Soru boş olamaz.")
 
@@ -47,8 +106,9 @@ async def search_relevant_chunks(
     distance = DocumentChunk.embedding.cosine_distance(
         query_embedding,
     ).label("distance")
+    candidate_limit = max(MIN_CANDIDATES_PER_RETRIEVER, limit * CANDIDATES_PER_RESULT)
 
-    statement = (
+    base_statement = (
         select(
             DocumentChunk,
             Document.original_filename,
@@ -61,22 +121,46 @@ async def search_relevant_chunks(
         .where(
             DocumentChunk.organization_id == organization_id,
             Document.status == DocumentStatus.READY,
-            distance <= 1.0 - minimum_similarity,
         )
-        .order_by(distance)
-        .limit(limit)
     )
 
-    result = await session.execute(statement)
+    if folder_ids:
+        base_statement = base_statement.where(Document.folder_id.in_(folder_ids))
 
-    return [
-        RetrievedChunk(
-            chunk_id=chunk.id,
-            document_id=chunk.document_id,
-            filename=filename,
-            page_number=chunk.page_number,
-            content=chunk.content,
-            similarity=1.0 - float(chunk_distance),
-        )
-        for chunk, filename, chunk_distance in result.all()
-    ]
+    # Combined with folders as AND: a selected document outside a mentioned folder is excluded.
+    if document_ids:
+        base_statement = base_statement.where(Document.id.in_(document_ids))
+
+    vector_statement = (
+        base_statement.where(distance <= 1.0 - minimum_similarity)
+        .order_by(distance)
+        .limit(candidate_limit)
+    )
+
+    # Questions are natural language, so match ANY term (OR) and let ranking reward chunks
+    # that match more of them; plainto_tsquery's AND would almost never match a full question.
+    # The config is inlined: a bound parameter would not resolve to regconfig.
+    text_search_config = literal_column(f"'{TEXT_SEARCH_CONFIG}'")
+    keyword_query = cast(
+        func.replace(
+            cast(func.plainto_tsquery(text_search_config, query), Text),
+            " & ",
+            " | ",
+        ),
+        TSQUERY,
+    )
+    # Normalization 32 maps the rank into [0, 1): rank / (rank + 1).
+    keyword_rank = func.ts_rank_cd(DocumentChunk.content_tsv, keyword_query, 32).label(
+        "keyword_score"
+    )
+    keyword_statement = (
+        base_statement.add_columns(keyword_rank)
+        .where(DocumentChunk.content_tsv.op("@@")(keyword_query))
+        .order_by(keyword_rank.desc(), distance)
+        .limit(candidate_limit)
+    )
+
+    vector_rows = (await session.execute(vector_statement)).all()
+    keyword_rows = (await session.execute(keyword_statement)).all()
+
+    return fuse_scores(vector_rows, keyword_rows, limit=limit)

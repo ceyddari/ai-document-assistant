@@ -4,18 +4,23 @@ from uuid import UUID, uuid4
 from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Text,
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
 EMBEDDING_DIMENSIONS = 1024
+# Must match the generated content_tsv column; queries use the same config so stems agree.
+TEXT_SEARCH_CONFIG = "turkish"
 
 
 class DocumentChunk(Base):
@@ -33,6 +38,17 @@ class DocumentChunk(Base):
             "document_id",
             "chunk_index",
             name="uq_document_chunks_document_id_chunk_index",
+        ),
+        Index(
+            "ix_document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index(
+            "ix_document_chunks_content_tsv",
+            "content_tsv",
+            postgresql_using="gin",
         ),
     )
 
@@ -71,6 +87,14 @@ class DocumentChunk(Base):
     embedding: Mapped[list[float]] = mapped_column(
         VECTOR(EMBEDDING_DIMENSIONS),
         nullable=False,
+    )
+
+    # Deferred: only used inside SQL for keyword search, never needed in Python.
+    content_tsv: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(f"to_tsvector('{TEXT_SEARCH_CONFIG}'::regconfig, content)", persisted=True),
+        nullable=False,
+        deferred=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

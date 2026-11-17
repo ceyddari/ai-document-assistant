@@ -27,6 +27,7 @@ class EmbeddingService:
         self._model = OllamaEmbeddings(
             model=settings.ollama_embedding_model,
             base_url=settings.ollama_base_url,
+            keep_alive=settings.ollama_keep_alive_seconds,
         )
         self._timeout_seconds = settings.ollama_timeout_seconds
         self._batch_size = settings.ollama_embedding_batch_size

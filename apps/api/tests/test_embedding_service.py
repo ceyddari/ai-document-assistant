@@ -218,3 +218,9 @@ async def test_embed_query_wraps_timeout(
 
     with pytest.raises(EmbeddingServiceError, match="zaman aşımına uğradı"):
         await service.embed_query("Yıllık izin nasıl alınır?")
+
+
+def test_embedding_service_builds_real_ollama_client(settings: Settings) -> None:
+    # Other tests mock the client; this catches settings the real class rejects
+    # (e.g. keep_alive must be an int for OllamaEmbeddings). No network call is made.
+    EmbeddingService(settings=settings)
