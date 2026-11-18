@@ -279,9 +279,6 @@ function App() {
       setDocuments(current => current.map(item => item.id === document.id ? document : item));
     } catch (caught) { handleError(caught); }
   }
-  function mentionFolder(folder: Folder) {
-    setQuestion(current => `${current}${current && !current.endsWith(" ") ? " " : ""}@${folder.name} `);
-  }
 
   async function retryDocument(document: DocumentItem) {
     if (!session || retryingDocumentId) return;
@@ -438,9 +435,6 @@ function App() {
         </div>}
       </div>
       <footer className="composer-area">
-        {folders.length > 0 && <div className="folder-chips" aria-label="Klasöre atıf yap">
-          {folders.map(folder => <button type="button" key={folder.id} className="folder-chip" onClick={() => mentionFolder(folder)}>@{folder.name}</button>)}
-        </div>}
         <form className="composer" onSubmit={ask}>
           <textarea value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Dokümanlarınız hakkında bir soru sorun…" aria-label="Sorunuz" rows={1} />
           {asking
@@ -459,6 +453,7 @@ function App() {
       retryingDocumentId={retryingDocumentId}
       onToggleSelect={toggleScope}
       onChatWithDocument={document => startNewConversation([document.id])}
+      onChatWithFolder={folder => startNewConversation(documents.filter(item => item.folder_id === folder.id && item.status === "ready").map(item => item.id))}
       onRetry={document => void retryDocument(document)}
       onDelete={setPendingDocumentDelete}
       onMove={(documentId, folderId) => void moveDocument(documentId, folderId)}

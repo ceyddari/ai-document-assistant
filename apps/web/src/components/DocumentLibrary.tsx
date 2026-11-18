@@ -21,6 +21,7 @@ type Props = {
   retryingDocumentId: string | null;
   onToggleSelect: (document: DocumentItem) => void;
   onChatWithDocument: (document: DocumentItem) => void;
+  onChatWithFolder: (folder: Folder) => void;
   onRetry: (document: DocumentItem) => void;
   onDelete: (document: DocumentItem) => void;
   onMove: (documentId: string, folderId: string | null) => void;
@@ -117,6 +118,7 @@ export function DocumentLibrary(props: Props) {
                 <span className="folder-count">{folderDocuments.length}</span>
                 <span className={`folder-chevron${open ? " open" : ""}`}><Icon name="chevron" /></span>
               </button>
+              {folderDocuments.some(item => item.status === "ready") && <button type="button" className="folder-delete folder-chat" aria-label={`${folder.name} klasörüyle yeni sohbet başlat`} title="Bu klasörle sohbet et" onClick={() => props.onChatWithFolder(folder)}><Icon name="chat" /></button>}
               <button type="button" className="folder-delete" aria-label={`${folder.name} klasörünü sil`} title="Klasörü sil" onClick={() => props.onDeleteFolder(folder)}><Icon name="close" /></button>
             </div>
             {open && (folderDocuments.length
