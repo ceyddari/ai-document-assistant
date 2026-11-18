@@ -17,6 +17,7 @@ from app.services import (
     DocumentNotFoundError,
     DocumentNotRetryableError,
     DocumentTooLargeError,
+    DuplicateDocumentError,
     InvalidPdfError,
     OrganizationNotFoundError,
 )
@@ -221,6 +222,11 @@ def test_upload_document_returns_created_document(
             DocumentTooLargeError("Dosya en fazla 1 MB olabilir."),
             413,
             "Dosya en fazla 1 MB olabilir.",
+        ),
+        (
+            DuplicateDocumentError("Bu doküman zaten yüklü: policy.pdf"),
+            409,
+            "Bu doküman zaten yüklü: policy.pdf",
         ),
         (
             SQLAlchemyError("Database error"),

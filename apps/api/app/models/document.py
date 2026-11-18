@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -30,6 +31,12 @@ class Document(Base):
         CheckConstraint(
             "size_bytes >= 0",
             name="ck_documents_size_bytes_non_negative",
+        ),
+        # NULLs never collide, so documents uploaded before this column existed are unaffected.
+        UniqueConstraint(
+            "organization_id",
+            "content_sha256",
+            name="uq_documents_org_content_sha256",
         ),
     )
 
@@ -74,6 +81,11 @@ class Document(Base):
     size_bytes: Mapped[int] = mapped_column(
         BigInteger,
         nullable=False,
+    )
+
+    content_sha256: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
     )
 
     status: Mapped[DocumentStatus] = mapped_column(

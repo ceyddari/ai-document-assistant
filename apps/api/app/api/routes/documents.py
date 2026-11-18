@@ -25,6 +25,7 @@ from app.services import (
     DocumentNotFoundError,
     DocumentNotRetryableError,
     DocumentTooLargeError,
+    DuplicateDocumentError,
     FolderNotFoundError,
     InvalidPdfError,
     OrganizationNotFoundError,
@@ -191,6 +192,12 @@ async def upload_document(
     except DocumentTooLargeError as error:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=str(error),
+        ) from error
+
+    except DuplicateDocumentError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
         ) from error
 

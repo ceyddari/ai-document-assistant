@@ -1,3 +1,4 @@
+import hashlib
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -5,6 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import Headers
 
@@ -14,6 +16,7 @@ from app.services import (
     DocumentNotFoundError,
     DocumentNotRetryableError,
     DocumentTooLargeError,
+    DuplicateDocumentError,
     InvalidPdfError,
     OrganizationNotFoundError,
     create_document,
@@ -85,6 +88,7 @@ async def test_create_document_saves_valid_pdf(
         name="Test Organization",
         slug="test-organization",
     )
+    db_session.scalar.return_value = None  # no existing document with the same content
     file = create_upload_file(
         content=b"%PDF-1.7\nTest PDF content",
     )
@@ -103,9 +107,84 @@ async def test_create_document_saves_valid_pdf(
     assert document.original_filename == "document.pdf"
     assert document.organization_id == organization_id
     assert document.size_bytes == len(b"%PDF-1.7\nTest PDF content")
+    assert document.content_sha256 == hashlib.sha256(b"%PDF-1.7\nTest PDF content").hexdigest()
     db_session.add.assert_called_once_with(document)
     db_session.commit.assert_awaited_once()
     db_session.refresh.assert_awaited_once_with(document)
+
+
+@pytest.mark.asyncio
+async def test_create_document_rejects_duplicate_content(
+    settings: Settings,
+    db_session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    db_session.get.return_value = Organization(
+        id=organization_id, name="Test Organization", slug="test-organization"
+    )
+    db_session.scalar.return_value = "policy.pdf"
+
+    with pytest.raises(DuplicateDocumentError, match="zaten yüklü: policy.pdf"):
+        await create_document(
+            file=create_upload_file(content=b"%PDF-1.7\nTest PDF content", filename="copy.pdf"),
+            organization_id=organization_id,
+            session=db_session,
+            settings=settings,
+        )
+
+    assert list(settings.storage_directory.iterdir()) == []
+    db_session.add.assert_not_called()
+    db_session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_document_maps_race_on_unique_constraint_to_duplicate(
+    settings: Settings,
+    db_session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    db_session.get.return_value = Organization(
+        id=organization_id, name="Test Organization", slug="test-organization"
+    )
+    # The pre-check finds nothing, the commit loses the race, the re-query finds the winner.
+    db_session.scalar.side_effect = [None, "policy.pdf"]
+    db_session.commit.side_effect = IntegrityError(
+        "INSERT", {}, Exception('violates unique constraint "uq_documents_org_content_sha256"')
+    )
+
+    with pytest.raises(DuplicateDocumentError, match="zaten yüklü: policy.pdf"):
+        await create_document(
+            file=create_upload_file(content=b"%PDF-1.7\nTest PDF content"),
+            organization_id=organization_id,
+            session=db_session,
+            settings=settings,
+        )
+
+    assert list(settings.storage_directory.iterdir()) == []
+    db_session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_document_other_integrity_errors_are_not_reported_as_duplicates(
+    settings: Settings,
+    db_session: AsyncMock,
+) -> None:
+    organization_id = uuid4()
+    db_session.get.return_value = Organization(
+        id=organization_id, name="Test Organization", slug="test-organization"
+    )
+    db_session.scalar.return_value = None
+    db_session.commit.side_effect = IntegrityError("INSERT", {}, Exception("foreign key"))
+
+    with pytest.raises(IntegrityError):
+        await create_document(
+            file=create_upload_file(content=b"%PDF-1.7\nTest PDF content"),
+            organization_id=organization_id,
+            session=db_session,
+            settings=settings,
+        )
+
+    assert list(settings.storage_directory.iterdir()) == []
 
 
 @pytest.mark.asyncio

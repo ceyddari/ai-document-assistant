@@ -1,3 +1,4 @@
+import hashlib
 from collections.abc import Sequence
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -5,7 +6,7 @@ from uuid import UUID, uuid4
 import aiofiles
 from fastapi import UploadFile
 from sqlalchemy import func, select, update
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -41,6 +42,30 @@ class DocumentNotRetryableError(Exception):
 
 class DocumentBusyError(Exception):
     pass
+
+
+class DuplicateDocumentError(Exception):
+    pass
+
+
+DUPLICATE_CONSTRAINT = "uq_documents_org_content_sha256"
+
+
+def _duplicate_error(existing_filename: str | None) -> DuplicateDocumentError:
+    if existing_filename:
+        return DuplicateDocumentError(f"Bu doküman zaten yüklü: {existing_filename}")
+    return DuplicateDocumentError("Bu doküman zaten yüklü.")
+
+
+async def _find_duplicate_filename(
+    *, organization_id: UUID, content_sha256: str, session: AsyncSession
+) -> str | None:
+    return await session.scalar(
+        select(Document.original_filename).where(
+            Document.organization_id == organization_id,
+            Document.content_sha256 == content_sha256,
+        )
+    )
 
 
 async def create_document(
@@ -79,6 +104,7 @@ async def create_document(
     storage_path = settings.storage_directory / stored_filename
     size_bytes = 0
     first_chunk = True
+    digest = hashlib.sha256()
 
     try:
         async with aiofiles.open(storage_path, "wb") as destination:
@@ -96,10 +122,18 @@ async def create_document(
                         f"Dosya en fazla {settings.max_upload_size_mb} MB olabilir."
                     )
 
+                digest.update(chunk)
                 await destination.write(chunk)
 
         if size_bytes == 0:
             raise InvalidPdfError("Boş bir PDF yüklenemez.")
+
+        content_sha256 = digest.hexdigest()
+        duplicate_filename = await _find_duplicate_filename(
+            organization_id=organization_id, content_sha256=content_sha256, session=session
+        )
+        if duplicate_filename is not None:
+            raise _duplicate_error(duplicate_filename)
 
     except Exception:
         storage_path.unlink(missing_ok=True)
@@ -116,6 +150,7 @@ async def create_document(
         storage_path=storage_path.as_posix(),
         content_type=file.content_type,
         size_bytes=size_bytes,
+        content_sha256=content_sha256,
     )
 
     session.add(document)
@@ -124,9 +159,15 @@ async def create_document(
         await session.commit()
         await session.refresh(document)
 
-    except SQLAlchemyError:
+    except SQLAlchemyError as error:
         await session.rollback()
         storage_path.unlink(missing_ok=True)
+        # Two identical uploads raced past the check above; the unique constraint caught the loser.
+        if isinstance(error, IntegrityError) and DUPLICATE_CONSTRAINT in str(error):
+            existing = await _find_duplicate_filename(
+                organization_id=organization_id, content_sha256=content_sha256, session=session
+            )
+            raise _duplicate_error(existing) from error
         raise
 
     return document
