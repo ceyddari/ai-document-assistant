@@ -1,12 +1,14 @@
+import asyncio
 import base64
 import hashlib
 import hmac
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import cache
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,6 +51,12 @@ def verify_password(password: str, encoded: str) -> bool:
         return False
 
 
+@cache
+def _dummy_hash() -> str:
+    # Verified against when the e-mail is unknown, so a miss costs as much as a wrong password.
+    return hash_password(secrets.token_urlsafe(16))
+
+
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
@@ -56,6 +64,8 @@ def _token_hash(token: str) -> str:
 async def issue_token(*, user: User, session: AsyncSession) -> IssuedToken:
     value = secrets.token_urlsafe(32)
     expires_at = datetime.now(UTC) + SESSION_LIFETIME
+    # Expired sessions are never read again; drop them whenever a new one is issued.
+    await session.execute(delete(AuthSession).where(AuthSession.expires_at <= datetime.now(UTC)))
     session.add(AuthSession(user_id=user.id, token_hash=_token_hash(value), expires_at=expires_at))
     await session.flush()
     return IssuedToken(value=value, expires_at=expires_at)
@@ -69,8 +79,10 @@ async def register_user_and_organization(
     organization_slug: str,
     session: AsyncSession,
 ) -> tuple[User, Organization, IssuedToken]:
+    # PBKDF2 is CPU-bound; keep it off the event loop so other requests are not stalled.
+    password_hash = await asyncio.to_thread(hash_password, password)
     try:
-        user = User(email=email, password_hash=hash_password(password))
+        user = User(email=email, password_hash=password_hash)
         organization = Organization(name=organization_name, slug=organization_slug)
         session.add_all([user, organization])
         await session.flush()
@@ -96,7 +108,9 @@ async def authenticate_user(
     *, email: str, password: str, session: AsyncSession
 ) -> tuple[User, IssuedToken]:
     user = await session.scalar(select(User).where(User.email == email))
-    if user is None or not verify_password(password, user.password_hash):
+    encoded = user.password_hash if user is not None else await asyncio.to_thread(_dummy_hash)
+    password_ok = await asyncio.to_thread(verify_password, password, encoded)
+    if user is None or not password_ok:
         raise CredentialsError("E-posta veya parola hatalı.")
     try:
         token = await issue_token(user=user, session=session)
@@ -105,6 +119,17 @@ async def authenticate_user(
         await session.rollback()
         raise
     return user, token
+
+
+async def revoke_token(*, token: str, session: AsyncSession) -> None:
+    try:
+        await session.execute(
+            delete(AuthSession).where(AuthSession.token_hash == _token_hash(token))
+        )
+        await session.commit()
+    except SQLAlchemyError:
+        await session.rollback()
+        raise
 
 
 async def get_user_by_token(*, token: str, session: AsyncSession) -> User | None:

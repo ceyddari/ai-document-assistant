@@ -11,7 +11,7 @@ from app.api.dependencies import get_current_user, require_organization_member
 from app.db.session import get_db_session
 from app.main import app
 from app.models import Organization, User
-from app.services.auth_service import CredentialsError, IssuedToken
+from app.services.auth_service import CredentialsError, IssuedToken, RegistrationConflictError
 
 
 @pytest.fixture
@@ -104,15 +104,95 @@ def test_register_returns_user_organization_and_token(
     assert response.json()["access_token"] == token.value
 
 
-def test_register_requires_at_least_six_character_password(client: TestClient) -> None:
+@pytest.mark.parametrize(
+    "password",
+    ["short1", "onlyletterslong", "1234567890123"],
+    ids=["short", "no-digit", "no-letter"],
+)
+def test_register_rejects_weak_passwords(client: TestClient, password: str) -> None:
     response = client.post(
         "/auth/register",
         json={
             "email": "owner@example.com",
-            "password": "12345",
+            "password": password,
             "organization_name": "Acme",
             "organization_slug": "acme",
         },
     )
 
     assert response.status_code == 422
+
+
+def test_login_is_rate_limited_after_repeated_failures(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    authenticate = AsyncMock(side_effect=CredentialsError("E-posta veya parola hatalı."))
+    monkeypatch.setattr("app.api.routes.auth.authenticate_user", authenticate)
+    body = {"email": "user@example.com", "password": "wrong"}
+
+    for _ in range(5):
+        assert client.post("/auth/login", json=body).status_code == 401
+    blocked = client.post("/auth/login", json=body)
+
+    assert blocked.status_code == 429
+    assert int(blocked.headers["retry-after"]) >= 1
+    assert authenticate.await_count == 5
+
+
+def test_successful_login_clears_failure_count(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = User(
+        id=uuid4(), email="user@example.com", password_hash="hidden", created_at=datetime.now(UTC)
+    )
+    token = IssuedToken(value="t", expires_at=datetime.now(UTC) + timedelta(hours=24))
+    authenticate = AsyncMock(
+        side_effect=[CredentialsError("x")] * 4 + [(user, token)] + [CredentialsError("x")] * 4
+    )
+    monkeypatch.setattr("app.api.routes.auth.authenticate_user", authenticate)
+    monkeypatch.setattr(
+        "app.api.routes.auth.list_user_organization_ids", AsyncMock(return_value=[])
+    )
+    body = {"email": "user@example.com", "password": "whatever"}
+
+    statuses = [client.post("/auth/login", json=body).status_code for _ in range(9)]
+
+    assert statuses == [401] * 4 + [200] + [401] * 4
+
+
+def test_register_is_rate_limited(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    register = AsyncMock(side_effect=RegistrationConflictError("kullanımda"))
+    monkeypatch.setattr("app.api.routes.auth.register_user_and_organization", register)
+    body = {
+        "email": "owner@example.com",
+        "password": "strong-password-123",
+        "organization_name": "Acme",
+        "organization_slug": "acme",
+    }
+
+    for _ in range(10):
+        assert client.post("/auth/register", json=body).status_code == 409
+
+    assert client.post("/auth/register", json=body).status_code == 429
+
+
+def test_logout_requires_authentication(client: TestClient) -> None:
+    assert client.post("/auth/logout").status_code == 401
+
+
+def test_logout_revokes_the_presented_token(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = User(
+        id=uuid4(), email="user@example.com", password_hash="hidden", created_at=datetime.now(UTC)
+    )
+    app.dependency_overrides[get_current_user] = lambda: user
+    revoke = AsyncMock()
+    monkeypatch.setattr("app.api.routes.auth.revoke_token", revoke)
+    try:
+        response = client.post("/auth/logout", headers={"Authorization": "Bearer my-token"})
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 204
+    assert revoke.await_args.kwargs["token"] == "my-token"

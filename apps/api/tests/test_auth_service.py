@@ -4,11 +4,13 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.rate_limit import RateLimiter
 from app.models import User
 from app.services.auth_service import (
     CredentialsError,
     authenticate_user,
     hash_password,
+    revoke_token,
     verify_password,
 )
 
@@ -35,6 +37,49 @@ async def test_authenticate_user_rejects_invalid_password() -> None:
         )
 
     session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_authenticate_unknown_user_still_verifies_a_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = AsyncMock(spec=AsyncSession)
+    session.scalar.return_value = None
+    verify = MagicMock(return_value=False)
+    monkeypatch.setattr("app.services.auth_service.verify_password", verify)
+
+    with pytest.raises(CredentialsError):
+        await authenticate_user(email="nobody@example.com", password="x", session=session)
+
+    verify.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_revoke_token_deletes_by_hash_and_commits() -> None:
+    session = AsyncMock(spec=AsyncSession)
+
+    await revoke_token(token="raw-token", session=session)
+
+    statement = str(
+        session.execute.await_args.args[0].compile(compile_kwargs={"literal_binds": True})
+    )
+    assert "DELETE FROM auth_sessions" in statement
+    assert "raw-token" not in statement
+    session.commit.assert_awaited_once()
+
+
+def test_rate_limiter_blocks_then_recovers(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = [1000.0]
+    monkeypatch.setattr("app.core.rate_limit.time.monotonic", lambda: now[0])
+    limiter = RateLimiter(max_attempts=2, window_seconds=60)
+
+    limiter.record("k")
+    assert limiter.retry_after("k") is None
+    limiter.record("k")
+    assert limiter.retry_after("k") == 60
+
+    now[0] += 61
+    assert limiter.retry_after("k") is None
 
 
 @pytest.mark.asyncio

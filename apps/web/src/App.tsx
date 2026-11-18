@@ -68,7 +68,13 @@ function App() {
   const dragDepth = useRef(0);
   const uploadingRef = useRef(false);
 
-  const logout = useCallback(() => { abortRef.current?.abort(); localStorage.removeItem(SESSION_KEY); setSession(null); setStarted(true); }, []);
+  const logout = useCallback(() => {
+    abortRef.current?.abort();
+    // Best effort: revoke the token on the server so a copied token stops working too.
+    const stored = readSession();
+    if (stored) api.logout(stored.access_token).catch(() => undefined);
+    localStorage.removeItem(SESSION_KEY); setSession(null); setStarted(true);
+  }, []);
   const handleError = useCallback((caught: unknown) => {
     if (caught instanceof ApiError && caught.status === 401) { logout(); return; }
     setError(caught instanceof Error ? caught.message : "Beklenmeyen bir hata oluştu.");

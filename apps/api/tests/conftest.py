@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.api.dependencies import require_organization_member
+from app.core.rate_limit import reset_all_limiters
 from app.main import app
 from app.models import OrganizationMembership
 
@@ -11,6 +12,12 @@ from app.models import OrganizationMembership
 def skip_startup_database_work(monkeypatch: pytest.MonkeyPatch) -> None:
     # `with TestClient(app)` runs the lifespan; keep it away from the real database.
     monkeypatch.setattr("app.main.fail_interrupted_documents", AsyncMock(return_value=0))
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiters() -> None:
+    # Limiters are module-level state; without this, tests would count against each other.
+    reset_all_limiters()
 
 
 @pytest.fixture(autouse=True)

@@ -9,12 +9,15 @@ export class ApiError extends Error {
 }
 
 function getErrorMessage(body: unknown): string {
-  if (
-    typeof body === "object" &&
-    body !== null &&
-    "detail" in body &&
-    typeof body.detail === "string"
-  ) return body.detail;
+  if (typeof body !== "object" || body === null || !("detail" in body)) return "İstek tamamlanamadı.";
+  if (typeof body.detail === "string") return body.detail;
+  // FastAPI validation errors (422) come as a list; show the first message without pydantic's prefix.
+  if (Array.isArray(body.detail)) {
+    const first: unknown = body.detail[0];
+    if (typeof first === "object" && first !== null && "msg" in first && typeof first.msg === "string") {
+      return first.msg.replace(/^Value error, /, "");
+    }
+  }
   return "İstek tamamlanamadı.";
 }
 
@@ -35,6 +38,7 @@ export const api = {
     request<AuthSession>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   register: (data: { email: string; password: string; organization_name: string; organization_slug: string }) =>
     request<AuthSession>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
+  logout: (token: string) => request<void>("/auth/logout", { method: "POST" }, token),
   documents: (organizationId: string, token: string) =>
     request<{ items: DocumentItem[] }>(`/organizations/${organizationId}/documents`, {}, token),
   upload: (organizationId: string, file: File, token: string, folderId?: string | null) => {

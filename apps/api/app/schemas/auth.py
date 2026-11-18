@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 Email = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=320)]
-Password = Annotated[str, StringConstraints(min_length=6, max_length=128)]
+Password = Annotated[str, StringConstraints(min_length=10, max_length=128)]
 
 
 class RegisterRequest(BaseModel):
@@ -30,6 +30,13 @@ class RegisterRequest(BaseModel):
         if "@" not in value:
             raise ValueError("Geçerli bir e-posta adresi girilmelidir.")
         return value.casefold()
+
+    @field_validator("password")
+    @classmethod
+    def require_letter_and_digit(cls, value: str) -> str:
+        if not any(char.isalpha() for char in value) or not any(char.isdigit() for char in value):
+            raise ValueError("Parola en az bir harf ve bir rakam içermelidir.")
+        return value
 
 
 class LoginRequest(BaseModel):

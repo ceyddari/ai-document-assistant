@@ -44,7 +44,9 @@ export function AuthScreen({ onAuthenticated, initialMode }: { onAuthenticated: 
             <label>Kısa adres<input name="organization_slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="acme-teknoloji" /></label>
           </div>}
           <label>E-posta<input name="email" type="email" required placeholder="siz@ornek.com" autoComplete="email" /></label>
-          <label>Parola<input name="password" type="password" required minLength={mode === "register" ? 6 : 1} placeholder="••••••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
+          <label>Parola<input name="password" type="password" required minLength={mode === "register" ? 10 : 1} placeholder="••••••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+            {mode === "register" && <small className="muted">En az 10 karakter; en az bir harf ve bir rakam içermelidir.</small>}
+          </label>
           {error && <ConfirmModal title="Uyarı" message={error} danger={false} onClose={() => setError("")} />}
           <button className="primary-button" disabled={loading}>{loading ? "Lütfen bekleyin…" : mode === "login" ? "Giriş yap" : "Çalışma alanı oluştur"}<span>→</span></button>
         </form>
