@@ -40,7 +40,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="AI Document Assistant API",
-    description="Şirket içi dokümanlar üzerinde kaynaklı soru-cevap API'si",
+    description="Yüklenen dokümanlar üzerinde kaynaklı soru-cevap API'si",
     version="0.1.0",
     lifespan=lifespan,
 )

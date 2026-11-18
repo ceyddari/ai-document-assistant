@@ -67,7 +67,10 @@ export function ConversationSidebar(props: Props) {
         }
         return <div key={item.id} className={`conversation-row${active ? " active" : ""}`}>
           <button className={`conversation-item${active ? " active" : ""}`} aria-current={active ? "page" : undefined} onClick={() => props.onOpen(item)}>
-            <span className="conversation-title">{item.title ?? "Başlıksız konuşma"}</span>
+            <span className="conversation-title">
+              {(item.document_ids?.length ?? 0) > 0 && <span className="conversation-scope" title={`${item.document_ids.length} dokümanla sınırlı`} aria-label={`${item.document_ids.length} dokümanla sınırlı`}><Icon name="file" /></span>}
+              {item.title ?? "Başlıksız konuşma"}
+            </span>
             <span className="conversation-date">{formatDate(item.updated_at)}</span>
           </button>
           <div className="conversation-actions">

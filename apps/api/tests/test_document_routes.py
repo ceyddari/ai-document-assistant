@@ -436,9 +436,7 @@ def test_retry_document_queues_failed_document(
     document.status = DocumentStatus.PENDING
     prepare_document_retry_mock.return_value = document
 
-    response = client.post(
-        f"/organizations/{organization_id}/documents/{document.id}/retry"
-    )
+    response = client.post(f"/organizations/{organization_id}/documents/{document.id}/retry")
 
     assert response.status_code == 202
     assert response.json()["status"] == "pending"
@@ -466,8 +464,6 @@ def test_retry_document_maps_service_errors(
 ) -> None:
     prepare_document_retry_mock.side_effect = service_error
 
-    response = client.post(
-        f"/organizations/{uuid4()}/documents/{uuid4()}/retry"
-    )
+    response = client.post(f"/organizations/{uuid4()}/documents/{uuid4()}/retry")
 
     assert response.status_code == expected_status

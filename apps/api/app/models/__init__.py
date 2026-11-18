@@ -1,5 +1,5 @@
 from app.models.auth import AuthSession, OrganizationMembership, OrganizationRole, User
-from app.models.conversation import Conversation
+from app.models.conversation import Conversation, ConversationDocument
 from app.models.document import Document, DocumentStatus
 from app.models.document_chunk import EMBEDDING_DIMENSIONS, TEXT_SEARCH_CONFIG, DocumentChunk
 from app.models.folder import Folder
@@ -12,6 +12,7 @@ __all__ = [
     "TEXT_SEARCH_CONFIG",
     "AuthSession",
     "Conversation",
+    "ConversationDocument",
     "Document",
     "DocumentChunk",
     "DocumentStatus",

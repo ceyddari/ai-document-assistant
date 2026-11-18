@@ -1,6 +1,6 @@
 # AI Document Assistant
 
-Şirket içi PDF dokümanları üzerinde kaynak göstererek soru-cevap üreten, yerel
+Yüklediğiniz PDF dokümanları üzerinde kaynak göstererek soru-cevap üreten, yerel
 modellerle çalışan çok kiracılı bir RAG uygulaması.
 
 ## Güncel özellikler
@@ -102,6 +102,12 @@ Frontend: <http://127.0.0.1:5173>
 | `POST` | `/organizations/{organization_id}/documents/{document_id}/retry` | Başarısız dokümanı yeniden işle |
 | `POST` | `/organizations/{organization_id}/search` | Semantik chunk araması |
 | `POST` | `/organizations/{organization_id}/ask` | Kaynaklı RAG cevabı |
+| `POST` | `/organizations/{organization_id}/ask/stream` | Kaynaklı RAG cevabı, server-sent events ile akışlı |
+| `GET` | `/organizations/{organization_id}/documents/{document_id}/file` | PDF dosyasını görüntüleme |
+| `DELETE` | `/organizations/{organization_id}/documents/{document_id}` | Doküman silme (işlenirken 409) |
+| `PATCH` | `/organizations/{organization_id}/conversations/{conversation_id}` | Konuşmayı yeniden adlandırma |
+| `DELETE` | `/organizations/{organization_id}/conversations/{conversation_id}` | Konuşma silme |
+| `PUT` | `/organizations/{organization_id}/conversations/{conversation_id}/messages/{message_id}/feedback` | Cevaba 👍/👎 |
 | `POST` | `/organizations/{organization_id}/conversations` | Conversation oluşturma |
 | `GET` | `/organizations/{organization_id}/conversations` | Conversation listesi |
 | `GET` | `/organizations/{organization_id}/conversations/{conversation_id}` | Mesaj ve kaynak detayları |
@@ -141,6 +147,13 @@ mevcut chunk'ları kaynak geçmişini bozmadan yeniden embed etmek için:
 
 ```powershell
 python apps/api/scripts/reembed_documents.py
+```
+
+Arayüzdeki 👍/👎 oylarını değerlendirme setine aday vaka olarak aktarmak için
+(`storage/eval/feedback_cases.json`, gözden geçirip `retrieval_cases.json`'a taşıyın):
+
+```powershell
+python apps/api/scripts/export_feedback.py
 ```
 
 Gerçek yüklenen PDF'ler `storage/documents/`, secret değerleri `.env` altında

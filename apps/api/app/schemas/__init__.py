@@ -13,6 +13,7 @@ __all__ = [
     "AskResponse",
     "ConversationCreate",
     "ConversationDetailResponse",
+    "ConversationDocumentsUpdate",
     "ConversationListResponse",
     "ConversationResponse",
     "ConversationUpdate",
@@ -32,6 +33,7 @@ from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserR
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationDetailResponse,
+    ConversationDocumentsUpdate,
     ConversationListResponse,
     ConversationResponse,
     ConversationUpdate,

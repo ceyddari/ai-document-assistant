@@ -167,6 +167,7 @@ def test_ask_returns_answer_with_sources(
         answer="İzin talebi sistemden oluşturulur. [Kaynak 1]",
         sources=[source],
         session=db_session,
+        document_ids=None,
     )
 
 

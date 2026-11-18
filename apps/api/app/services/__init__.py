@@ -84,6 +84,7 @@ __all__ = [
     "build_user_prompt",
     "check_ai_readiness",
     "chunk_pages",
+    "conversation_document_ids",
     "create_conversation",
     "create_document",
     "delete_conversation",
@@ -103,6 +104,7 @@ __all__ = [
     "resolve_document_file",
     "rewrite_question",
     "search_relevant_chunks",
+    "set_conversation_documents",
     "set_message_feedback",
     "stream_answer_question",
 ]
@@ -114,12 +116,14 @@ from app.services.ai_readiness_service import (
 from app.services.conversation_service import (
     ConversationNotFoundError,
     MessageNotFoundError,
+    conversation_document_ids,
     create_conversation,
     delete_conversation,
     get_conversation_with_messages,
     get_recent_messages,
     list_conversations,
     rename_conversation,
+    set_conversation_documents,
     set_message_feedback,
 )
 from app.services.message_service import PersistedExchange, persist_rag_exchange

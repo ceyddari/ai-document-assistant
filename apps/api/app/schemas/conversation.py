@@ -32,6 +32,10 @@ class MessageFeedbackUpdate(BaseModel):
     value: Literal[-1, 1] | None
 
 
+class ConversationDocumentsUpdate(BaseModel):
+    document_ids: list[UUID] = Field(max_length=100)
+
+
 class ConversationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -40,6 +44,8 @@ class ConversationResponse(BaseModel):
     title: str | None
     created_at: datetime
     updated_at: datetime
+    # Documents the conversation is limited to; empty means all documents.
+    document_ids: list[UUID] = Field(default_factory=list)
 
 
 class ConversationListResponse(BaseModel):

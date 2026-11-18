@@ -78,6 +78,8 @@ export const api = {
     request<ConversationDetail>(`/organizations/${organizationId}/conversations/${conversationId}`, {}, token),
   renameConversation: (organizationId: string, conversationId: string, title: string, token: string) =>
     request<Conversation>(`/organizations/${organizationId}/conversations/${conversationId}`, { method: "PATCH", body: JSON.stringify({ title }) }, token),
+  setConversationDocuments: (organizationId: string, conversationId: string, documentIds: string[], token: string) =>
+    request<string[]>(`/organizations/${organizationId}/conversations/${conversationId}/documents`, { method: "PUT", body: JSON.stringify({ document_ids: documentIds }) }, token),
   deleteConversation: async (organizationId: string, conversationId: string, token: string) => {
     await request<void>(`/organizations/${organizationId}/conversations/${conversationId}`, { method: "DELETE" }, token);
   },

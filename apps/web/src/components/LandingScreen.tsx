@@ -53,20 +53,19 @@ export function LandingScreen({ onStart, hasSession }: { onStart: (mode?: AuthMo
   return <main className="landing-shell">
     <nav className="landing-nav">
       <span className="nav-note">AI DOCUMENT INTELLIGENCE</span>
+      {/* Signed in, the hero button is the only way in; a second one here would repeat it. */}
       <div className="landing-actions">
-        {hasSession
-          ? <HoverButton text="Uygulamaya dön" onClick={() => onStart()} />
-          : <><HoverButton text="Giriş yap" onClick={() => onStart("login")} /><HoverButton text="Kayıt ol" onClick={() => onStart("register")} /></>}
+        {!hasSession && <><HoverButton text="Giriş yap" onClick={() => onStart("login")} /><HoverButton text="Kayıt ol" onClick={() => onStart("register")} /></>}
       </div>
     </nav>
     <div className="landing-glow glow-one" /><div className="landing-glow glow-two" />
     <section className="landing-copy">
-      <p className="landing-kicker"><i /> Kurumsal bilginin yeni formu</p>
+      <p className="landing-kicker"><i /> Bilginin yeni formu</p>
       <h1>Bilginiz.<br /><em>Canlı, bağlantılı</em><br />ve erişilebilir.</h1>
       <p>Dağınık dokümanlarınızı kaynaklarıyla konuşabilen güvenilir bir bilgi merkezine dönüştürün.</p>
       <button className="colorful-button" onClick={() => onStart()}>
         <span className="colorful-glow" aria-hidden="true" />
-        <span className="colorful-content">{hasSession ? "Dokümanlara git" : "Başla"}<Icon name="arrowUpRight" /></span>
+        <span className="colorful-content">{hasSession ? "Çalışma alanına git" : "Başla"}<Icon name="arrowUpRight" /></span>
       </button>
     </section>
     <section className="landing-visual" aria-hidden="true">

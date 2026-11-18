@@ -15,6 +15,7 @@ const ICONS = {
   home: "M4 11.5 12 5l8 6.5M6.5 10v9h11v-9M10 19v-5h4v5",
   arrowUpRight: "M7 7h10v10M7 17 17 7",
   arrowRight: "M5 12h14m0 0-6-6m6 6-6 6",
+  chat: "M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4.5 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z",
   trash: "M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10.2 11v5M13.8 11v5",
   pencil: "M4 20h4.2L19 9.2 14.8 5 4 15.8zM12.8 7l4.2 4.2",
   external: "M14 4h6v6M20 4l-8.5 8.5M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",

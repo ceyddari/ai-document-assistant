@@ -8,6 +8,7 @@ from app.api.dependencies import DatabaseSession, require_organization_member
 from app.schemas import (
     ConversationCreate,
     ConversationDetailResponse,
+    ConversationDocumentsUpdate,
     ConversationListResponse,
     ConversationResponse,
     ConversationUpdate,
@@ -17,13 +18,16 @@ from app.schemas import (
 )
 from app.services import (
     ConversationNotFoundError,
+    DocumentNotFoundError,
     MessageNotFoundError,
     OrganizationNotFoundError,
+    conversation_document_ids,
     create_conversation,
     delete_conversation,
     get_conversation_with_messages,
     list_conversations,
     rename_conversation,
+    set_conversation_documents,
     set_message_feedback,
 )
 
@@ -68,13 +72,21 @@ async def get_conversations(
             limit=limit,
             offset=offset,
         )
+        scopes = await conversation_document_ids(
+            conversation_ids=[item.id for item in conversations], session=session
+        )
     except OrganizationNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except SQLAlchemyError as error:
         raise HTTPException(status_code=503, detail="Konuşmalar şu anda getirilemiyor.") from error
 
     return ConversationListResponse(
-        items=[ConversationResponse.model_validate(item) for item in conversations],
+        items=[
+            ConversationResponse.model_validate(item).model_copy(
+                update={"document_ids": scopes.get(item.id, [])}
+            )
+            for item in conversations
+        ],
         total=total,
         limit=limit,
         offset=offset,
@@ -93,12 +105,17 @@ async def get_conversation(
             conversation_id=conversation_id,
             session=session,
         )
+        scopes = await conversation_document_ids(
+            conversation_ids=[conversation.id], session=session
+        )
     except ConversationNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except SQLAlchemyError as error:
         raise HTTPException(status_code=503, detail="Konuşma şu anda getirilemiyor.") from error
 
-    response = ConversationResponse.model_validate(conversation)
+    response = ConversationResponse.model_validate(conversation).model_copy(
+        update={"document_ids": scopes.get(conversation.id, [])}
+    )
     return ConversationDetailResponse(
         **response.model_dump(),
         messages=[
@@ -135,12 +152,17 @@ async def rename_organization_conversation(
             title=request.title,
             session=session,
         )
+        scopes = await conversation_document_ids(
+            conversation_ids=[conversation.id], session=session
+        )
     except ConversationNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except SQLAlchemyError as error:
         raise HTTPException(status_code=503, detail="Konuşma şu anda güncellenemiyor.") from error
 
-    return ConversationResponse.model_validate(conversation)
+    return ConversationResponse.model_validate(conversation).model_copy(
+        update={"document_ids": scopes.get(conversation.id, [])}
+    )
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -187,3 +209,26 @@ async def update_message_feedback(
         ) from error
 
     return MessageResponse.model_validate(message)
+
+
+@router.put("/{conversation_id}/documents", response_model=list[UUID])
+async def update_conversation_documents(
+    organization_id: UUID,
+    conversation_id: UUID,
+    request: ConversationDocumentsUpdate,
+    session: DatabaseSession,
+) -> list[UUID]:
+    """Replace the documents this conversation is limited to; [] lifts the limit."""
+    try:
+        return await set_conversation_documents(
+            organization_id=organization_id,
+            conversation_id=conversation_id,
+            document_ids=request.document_ids,
+            session=session,
+        )
+    except (ConversationNotFoundError, DocumentNotFoundError) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=503, detail="Konuşmanın dokümanları şu anda güncellenemiyor."
+        ) from error

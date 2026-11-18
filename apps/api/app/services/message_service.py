@@ -6,8 +6,11 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Conversation, Message, MessageRole, MessageSource
-from app.services.conversation_service import ConversationNotFoundError
+from app.models import Conversation, ConversationDocument, Message, MessageRole, MessageSource
+from app.services.conversation_service import (
+    ConversationNotFoundError,
+    organization_document_ids,
+)
 from app.services.retrieval_service import RetrievedChunk
 
 
@@ -26,7 +29,9 @@ async def persist_rag_exchange(
     answer: str,
     sources: list[RetrievedChunk],
     session: AsyncSession,
+    document_ids: list[UUID] | None = None,
 ) -> PersistedExchange:
+    """document_ids becomes the scope of a newly created conversation; ignored otherwise."""
     try:
         if conversation_id is None:
             conversation = Conversation(
@@ -35,6 +40,23 @@ async def persist_rag_exchange(
             )
             session.add(conversation)
             await session.flush()
+            # Documents deleted while the answer streamed are silently left out.
+            scope = await organization_document_ids(
+                organization_id=organization_id,
+                document_ids=document_ids or [],
+                session=session,
+            )
+            if scope:
+                session.add_all(
+                    [
+                        ConversationDocument(
+                            conversation_id=conversation.id,
+                            document_id=document_id,
+                            position=position,
+                        )
+                        for position, document_id in enumerate(scope)
+                    ]
+                )
         else:
             statement = (
                 select(Conversation)

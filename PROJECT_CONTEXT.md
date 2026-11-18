@@ -6,7 +6,7 @@
 
 ## Amaç ve çalışma biçimi
 
-Uygulama, şirket çalışanlarının PDF yükleyip doğal dilde soru sorabildiği,
+Uygulama, kullanıcıların PDF yükleyip doğal dilde soru sorabildiği,
 cevapların doküman/sayfa/chunk kaynaklarıyla döndüğü çok kiracılı bir RAG
 sistemidir. Teknik kararlar açıklanmalı, feature'lar tutarlı paketler halinde
 uygulanmalı ve her paket Ruff, pytest ve gerektiğinde gerçek entegrasyon testiyle

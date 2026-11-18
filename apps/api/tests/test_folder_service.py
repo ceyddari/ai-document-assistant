@@ -35,7 +35,9 @@ async def test_resolve_folder_mentions_prefers_longest_name_and_strips_mentions(
 async def test_resolve_folder_mentions_without_mention_returns_text_unchanged() -> None:
     folder = Folder(id=uuid4(), organization_id=uuid4(), name="İK")
     ids, text = await resolve_folder_mentions(
-        organization_id=folder.organization_id, text="İzin kaç gün?", session=_session_with([folder])
+        organization_id=folder.organization_id,
+        text="İzin kaç gün?",
+        session=_session_with([folder]),
     )
     assert ids == []
     assert text == "İzin kaç gün?"

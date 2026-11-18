@@ -872,4 +872,108 @@ button:disabled { cursor: not-allowed; }
 .modal input { height: 42px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--field); color: var(--text); font: inherit; font-size: 14px; outline: none; }
 .modal input:focus { border-color: var(--focus); }
 .modal-error { margin: -4px 0 0; font-size: 13px; color: var(--danger-text); }
+.modal-text { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+.button.primary.modal-danger { background: var(--danger-text); box-shadow: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Markdown answers */
+.message-content :is(h1, h2, h3, h4) { margin: 1em 0 0.4em; color: var(--ink); font-size: 1.05em; font-weight: 650; line-height: 1.4; }
+.message-content > :first-child { margin-top: 0; }
+.message-content :is(ul, ol) { margin: 0.5em 0; padding-left: 1.4em; }
+.message-content li + li { margin-top: 0.25em; }
+.message-content li::marker { color: var(--accent-soft); }
+.message-content a { color: var(--accent-text); text-underline-offset: 2px; }
+.message-content code { padding: 0.1em 0.35em; border-radius: 6px; background: var(--field); font-size: 0.9em; }
+.message-content pre { margin: 0.6em 0; padding: 12px 14px; overflow-x: auto; border-radius: var(--radius-item); background: var(--field); }
+.message-content pre code { padding: 0; background: none; }
+.message-content blockquote { margin: 0.6em 0; padding-left: 12px; border-left: 2px solid var(--line-strong); color: var(--muted); }
+/* Wide tables scroll inside the answer instead of widening the page. */
+.message-content table { display: block; max-width: 100%; margin: 0.7em 0; overflow-x: auto; border-collapse: collapse; font-size: 0.92em; }
+.message-content :is(th, td) { padding: 6px 10px; border: 1px solid var(--line-strong); text-align: left; vertical-align: top; }
+.message-content th { background: var(--raised); color: var(--ink); font-weight: 600; }
+
+.cite-button { border: 0; cursor: pointer; font-family: inherit; transition: background-color 0.15s, color 0.15s; }
+.cite-button:hover, .cite-button:focus-visible { background: var(--accent); color: #fff; }
+
+.stream-caret { display: inline-block; width: 7px; height: 1.05em; margin-left: 2px; border-radius: 2px; background: var(--accent-soft); vertical-align: -0.15em; animation: caret 1s steps(2) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+
+/* Sources */
+.source.flash { border-color: var(--accent); box-shadow: 0 0 0 3px #c45de833; }
+.source-actions { display: flex; justify-content: flex-end; padding: 0 14px 12px; }
+.source-open { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; color: var(--accent-text); font-size: 12.5px; font-weight: 600; transition: border-color 0.15s, background-color 0.15s; }
+.source-open .icon { width: 14px; height: 14px; }
+.source-open:hover { border-color: var(--accent); background: #a533c520; }
+
+.feedback { display: flex; gap: 4px; margin-top: 10px; }
+.feedback-button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: var(--faint); transition: background-color 0.15s, color 0.15s; }
+.feedback-button .icon { width: 17px; height: 17px; }
+.feedback-button:hover { background: #ffffff0b; color: var(--text); }
+.feedback-button.active { background: var(--accent-chip); color: var(--accent-text); }
+
+.send-button.stop { background: var(--raised); border: 1px solid var(--line-strong); box-shadow: none; }
+.send-button.stop .icon { fill: currentColor; }
+
+/* Conversation rows */
+.conversation-row { position: relative; }
+.conversation-row .conversation-item { width: 100%; padding-right: 72px; }
+.conversation-actions { position: absolute; top: 50%; right: 6px; display: flex; gap: 2px; opacity: 0; transform: translateY(-50%); transition: opacity 0.15s; }
+.conversation-row:hover .conversation-actions, .conversation-actions:focus-within { opacity: 1; }
+@media (hover: none) { .conversation-actions { opacity: 1; } }
+.row-action { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.row-action .icon { width: 15px; height: 15px; }
+.row-action:hover:not(:disabled) { background: #ffffff10; color: var(--text); }
+.row-action.danger:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger-text); }
+.row-action:disabled { opacity: 0.35; cursor: not-allowed; }
+.conversation-item.editing { padding: 6px 8px; }
+.conversation-rename { width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--focus); border-radius: 9px; background: var(--field); color: var(--text); font: inherit; font-size: 14px; outline: none; }
+
+/* Document rows: select toggle and actions */
+.document { grid-template-columns: 34px minmax(0, 1fr) auto; }
+.document-actions { display: flex; align-items: flex-start; gap: 2px; }
+.file-select { padding: 0; cursor: pointer; transition: border-color 0.15s, background-color 0.15s; }
+.file-select:hover { border-color: var(--accent); }
+.document.selected { background: #9a39cf1c; box-shadow: inset 0 0 0 1px #c45de830; }
+.document.selected .file-select { border-color: var(--accent); background: var(--accent-chip); color: #fff; }
+.document:hover .document-delete:disabled { opacity: 0.35; }
+.document-delete:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger-text); }
+
+
+/* pointer-events: none keeps the overlay out of the drag enter/leave counting. */
+.drop-overlay { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px; background: #050505c4; backdrop-filter: blur(4px); pointer-events: none; }
+.drop-overlay > div { display: grid; justify-items: center; gap: 8px; padding: 36px 48px; border: 2px dashed var(--accent); border-radius: var(--radius-panel); color: var(--muted); text-align: center; }
+.drop-overlay .icon { width: 34px; height: 34px; color: var(--accent-soft); }
+.drop-overlay b { color: var(--ink); font-size: 17px; }
+
+@media (prefers-reduced-motion: reduce) { .stream-caret { animation: none; } }
+
+/* Files waiting for confirmation after a drop */
+.pending-files { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; max-height: 220px; margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; list-style: none; }
+.pending-files li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); font-size: 13.5px; color: var(--text); }
+.pending-files .icon { width: 16px; height: 16px; color: var(--accent-soft); }
+.pending-files span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending-files small { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* Conversation document scope, under the header */
+.scope-bar { position: relative; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--surface-header); }
+.scope-all { font-size: 12.5px; color: var(--faint); }
+.scope-doc { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; height: 28px; padding: 0 4px 0 10px; border: 1px solid #c45de855; border-radius: 999px; background: var(--accent-chip); color: var(--accent-text); font-size: 12.5px; font-weight: 600; }
+.scope-doc > .icon { width: 14px; height: 14px; flex: none; }
+.scope-doc-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-doc.not-ready { border-style: dashed; opacity: 0.7; }
+.scope-doc button { display: grid; place-items: center; width: 22px; height: 22px; flex: none; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; }
+.scope-doc button .icon { width: 13px; height: 13px; }
+.scope-doc button:hover { background: #ffffff18; }
+.scope-add-wrap { position: relative; }
+.scope-add { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px 0 9px; border: 1px dashed var(--line-strong); border-radius: 999px; background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 600; transition: border-color 0.15s, color 0.15s; }
+.scope-add .icon { width: 14px; height: 14px; }
+.scope-add:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-text); }
+.scope-add:disabled { opacity: 0.45; cursor: not-allowed; }
+.scope-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; display: grid; min-width: 240px; max-width: min(340px, 80vw); max-height: 280px; overflow-y: auto; padding: 6px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--raised); box-shadow: 0 16px 40px #00000080; }
+.scope-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font-size: 13.5px; text-align: left; }
+.scope-menu button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-menu button .icon { width: 16px; height: 16px; color: var(--accent-soft); }
+.scope-menu button:hover { background: #ffffff0c; }
+
+.conversation-scope { display: inline-grid; place-items: center; margin-right: 6px; color: var(--accent-soft); vertical-align: -0.15em; }
+.conversation-scope .icon { width: 14px; height: 14px; }

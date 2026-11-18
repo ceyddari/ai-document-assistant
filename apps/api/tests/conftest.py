@@ -14,6 +14,14 @@ def skip_startup_database_work(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def no_conversation_document_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Route tests mock their services; default the scope lookup to "no scope" so they need
+    # no extra DB mocking. Scope tests override these with their own monkeypatch.
+    for module in ("app.api.routes.conversations", "app.api.routes.ask"):
+        monkeypatch.setattr(f"{module}.conversation_document_ids", AsyncMock(return_value={}))
+
+
+@pytest.fixture(autouse=True)
 def bypass_organization_authorization_for_existing_route_tests():
     app.dependency_overrides[require_organization_member] = lambda: MagicMock(
         spec=OrganizationMembership

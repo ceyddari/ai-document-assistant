@@ -45,6 +45,8 @@ export type Conversation = {
   title: string | null;
   created_at: string;
   updated_at: string;
+  /** Documents the conversation is limited to; empty means all documents. */
+  document_ids: string[];
 };
 export type ConversationDetail = Conversation & { messages: Message[] };
 export type AskResponse = {

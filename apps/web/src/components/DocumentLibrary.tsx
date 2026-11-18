@@ -20,6 +20,7 @@ type Props = {
   uploading: boolean;
   retryingDocumentId: string | null;
   onToggleSelect: (document: DocumentItem) => void;
+  onChatWithDocument: (document: DocumentItem) => void;
   onRetry: (document: DocumentItem) => void;
   onDelete: (document: DocumentItem) => void;
   onMove: (documentId: string, folderId: string | null) => void;
@@ -79,7 +80,7 @@ export function DocumentLibrary(props: Props) {
     const busy = document.status === "pending" || document.status === "processing";
     return <li className={`document${selected ? " selected" : ""}`} key={document.id}>
       {ready
-        ? <button type="button" className="file-icon file-select" aria-pressed={selected} title={selected ? "Sorulardan çıkar" : "Soruları bu dokümanla sınırla"} aria-label={`${document.original_filename}: ${selected ? "sorulardan çıkar" : "soruları bu dokümanla sınırla"}`} onClick={() => props.onToggleSelect(document)}>
+        ? <button type="button" className="file-icon file-select" aria-pressed={selected} title={selected ? "Bu konuşmadan çıkar" : "Bu konuşmaya ekle"} aria-label={`${document.original_filename}: ${selected ? "bu konuşmadan çıkar" : "bu konuşmaya ekle"}`} onClick={() => props.onToggleSelect(document)}>
           <Icon name={selected ? "check" : "file"} />
         </button>
         : <span className="file-icon" aria-hidden="true"><Icon name="file" /></span>}
@@ -94,6 +95,7 @@ export function DocumentLibrary(props: Props) {
         {document.status === "failed" && <button className="retry-button" disabled={retryingDocumentId !== null} onClick={() => props.onRetry(document)}><Icon name="retry" />{retryingDocumentId === document.id ? "Başlatılıyor…" : "Yeniden dene"}</button>}
       </div>
       <div className="document-actions">
+        {ready && <button type="button" className="folder-button" aria-label={`${document.original_filename} ile yeni sohbet başlat`} title="Bu dokümanla sohbet et" onClick={() => props.onChatWithDocument(document)}><Icon name="chat" /></button>}
         <button type="button" className={`folder-button${folderMenu?.documentId === document.id ? " open" : ""}`} aria-haspopup="menu" aria-expanded={folderMenu?.documentId === document.id} aria-label="Klasöre taşı" title="Klasöre taşı" onClick={event => openFolderMenu(document.id, event.currentTarget)}><Icon name="folder" /></button>
         <button type="button" className="folder-button document-delete" aria-label={`${document.original_filename} dokümanını sil`} title={busy ? "İşlem bitince silinebilir" : "Sil"} disabled={busy} onClick={() => props.onDelete(document)}><Icon name="trash" /></button>
       </div>

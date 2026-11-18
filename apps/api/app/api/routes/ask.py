@@ -22,6 +22,7 @@ from app.services import (
     PersistedExchange,
     RagAnswer,
     answer_question,
+    conversation_document_ids,
     get_recent_messages,
     persist_rag_exchange,
     stream_answer_question,
@@ -50,15 +51,19 @@ def _error_response(error: Exception) -> tuple[int, str] | None:
     return None
 
 
-async def _load_history(
+async def _load_context(
     *,
     organization_id: UUID,
     request: AskRequest,
     session: AsyncSession,
-) -> list[HistoryMessage]:
-    # Checked before any model call, so an unknown conversation fails fast with 404.
+) -> tuple[list[HistoryMessage], list[UUID] | None]:
+    """History and document scope. Checked before any model call: unknown conversation -> 404.
+
+    A saved conversation's scope wins, so a reload or another tab cannot widen it; the
+    request's document_ids only scope a new conversation (and become its saved scope).
+    """
     if request.conversation_id is None:
-        return []
+        return [], request.document_ids or None
 
     messages = await get_recent_messages(
         organization_id=organization_id,
@@ -66,9 +71,13 @@ async def _load_history(
         session=session,
         limit=HISTORY_MESSAGE_LIMIT,
     )
-    return [
+    scopes = await conversation_document_ids(
+        conversation_ids=[request.conversation_id], session=session
+    )
+    history = [
         HistoryMessage(role=message.role.value, content=message.content) for message in messages
     ]
+    return history, scopes.get(request.conversation_id) or request.document_ids or None
 
 
 def _ask_response(
@@ -108,7 +117,7 @@ async def ask_question(
     llm_service = LlmService(settings=settings)
 
     try:
-        history = await _load_history(
+        history, document_ids = await _load_context(
             organization_id=organization_id, request=request, session=session
         )
         result = await answer_question(
@@ -118,7 +127,7 @@ async def ask_question(
             embedding_service=embedding_service,
             llm_service=llm_service,
             history=history,
-            document_ids=request.document_ids,
+            document_ids=document_ids,
             limit=request.limit,
             minimum_similarity=settings.retrieval_min_similarity,
         )
@@ -129,6 +138,7 @@ async def ask_question(
             answer=result.answer,
             sources=result.sources,
             session=session,
+            document_ids=document_ids,
         )
     except Exception as error:
         mapped = _error_response(error)
@@ -157,7 +167,7 @@ async def ask_question_stream(
     cancelled and nothing is saved.
     """
     try:
-        history = await _load_history(
+        history, document_ids = await _load_context(
             organization_id=organization_id, request=request, session=session
         )
     except Exception as error:
@@ -182,7 +192,7 @@ async def ask_question_stream(
                     embedding_service=embedding_service,
                     llm_service=llm_service,
                     history=history,
-                    document_ids=request.document_ids,
+                    document_ids=document_ids,
                     limit=request.limit,
                     minimum_similarity=settings.retrieval_min_similarity,
                 ):
@@ -201,6 +211,7 @@ async def ask_question_stream(
                     answer=result.answer,
                     sources=result.sources,
                     session=stream_session,
+                    document_ids=document_ids,
                 )
                 response = _ask_response(request=request, result=result, exchange=exchange)
                 yield _sse({"type": "done", **response.model_dump(mode="json")})

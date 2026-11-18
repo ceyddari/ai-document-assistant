@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { api } from "../api";
 import type { AuthSession } from "../types";
+import { ConfirmModal } from "./ConfirmModal";
 import type { AuthMode } from "./LandingScreen";
 
 export function AuthScreen({ onAuthenticated, initialMode }: { onAuthenticated: (session: AuthSession) => void; initialMode: AuthMode }) {
@@ -26,9 +27,9 @@ export function AuthScreen({ onAuthenticated, initialMode }: { onAuthenticated: 
   return <main className="auth-shell">
     <section className="auth-story">
       <div className="story-copy">
-        <p className="eyebrow">Kurumsal bilgi, tek bir yerde</p>
+        <p className="eyebrow">Tüm bilginiz, tek bir yerde</p>
         <h1>Dokümanlarınız<br />cevaba dönüşsün.</h1>
-        <p>Şirket bilginizi güvenle arayın, kaynaklarını görün ve her konuşmayı kaldığınız yerden sürdürün.</p>
+        <p>Dokümanlarınızda güvenle arayın, kaynaklarını görün ve her konuşmayı kaldığınız yerden sürdürün.</p>
       </div>
       <div className="quote-card"><span>“</span><p>Doğru cevap kadar, o cevabın nereden geldiğini bilmek de önemli.</p></div>
     </section>
@@ -42,9 +43,9 @@ export function AuthScreen({ onAuthenticated, initialMode }: { onAuthenticated: 
             <label>Organizasyon adı<input name="organization_name" required placeholder="Acme Teknoloji" /></label>
             <label>Kısa adres<input name="organization_slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="acme-teknoloji" /></label>
           </div>}
-          <label>E-posta<input name="email" type="email" required placeholder="siz@sirket.com" autoComplete="email" /></label>
+          <label>E-posta<input name="email" type="email" required placeholder="siz@ornek.com" autoComplete="email" /></label>
           <label>Parola<input name="password" type="password" required minLength={mode === "register" ? 6 : 1} placeholder="••••••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
-          {error && <div className="error-banner">{error}</div>}
+          {error && <ConfirmModal title="Uyarı" message={error} danger={false} onClose={() => setError("")} />}
           <button className="primary-button" disabled={loading}>{loading ? "Lütfen bekleyin…" : mode === "login" ? "Giriş yap" : "Çalışma alanı oluştur"}<span>→</span></button>
         </form>
         <button className="text-button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>

@@ -3,12 +3,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     Conversation,
+    ConversationDocument,
     Document,
     DocumentChunk,
     Message,
@@ -16,7 +17,7 @@ from app.models import (
     MessageSource,
     Organization,
 )
-from app.services.document_service import OrganizationNotFoundError
+from app.services.document_service import DocumentNotFoundError, OrganizationNotFoundError
 from app.services.retrieval_service import RetrievedChunk
 
 
@@ -275,3 +276,83 @@ async def set_message_feedback(
         raise
 
     return message
+
+
+async def conversation_document_ids(
+    *, conversation_ids: Sequence[UUID], session: AsyncSession
+) -> dict[UUID, list[UUID]]:
+    """Scope of each conversation, in the order the documents were added."""
+    if not conversation_ids:
+        return {}
+
+    rows = await session.execute(
+        select(ConversationDocument.conversation_id, ConversationDocument.document_id)
+        .where(ConversationDocument.conversation_id.in_(conversation_ids))
+        .order_by(ConversationDocument.position, ConversationDocument.document_id)
+    )
+    scopes: dict[UUID, list[UUID]] = defaultdict(list)
+
+    for conversation_id, document_id in rows.all():
+        scopes[conversation_id].append(document_id)
+
+    return dict(scopes)
+
+
+async def organization_document_ids(
+    *, organization_id: UUID, document_ids: Sequence[UUID], session: AsyncSession
+) -> list[UUID]:
+    """The given ids that are documents of this organization, de-duplicated, order kept."""
+    unique_ids = list(dict.fromkeys(document_ids))
+
+    if not unique_ids:
+        return []
+
+    found = set(
+        (
+            await session.scalars(
+                select(Document.id).where(
+                    Document.id.in_(unique_ids),
+                    Document.organization_id == organization_id,
+                )
+            )
+        ).all()
+    )
+    return [document_id for document_id in unique_ids if document_id in found]
+
+
+async def set_conversation_documents(
+    *,
+    organization_id: UUID,
+    conversation_id: UUID,
+    document_ids: Sequence[UUID],
+    session: AsyncSession,
+) -> list[UUID]:
+    """Replace the scope; an empty list lifts it. Unknown or foreign documents are refused."""
+    await _get_conversation(
+        organization_id=organization_id, conversation_id=conversation_id, session=session
+    )
+    valid_ids = await organization_document_ids(
+        organization_id=organization_id, document_ids=document_ids, session=session
+    )
+
+    if len(valid_ids) != len(set(document_ids)):
+        raise DocumentNotFoundError("Doküman bulunamadı.")
+
+    try:
+        await session.execute(
+            delete(ConversationDocument).where(
+                ConversationDocument.conversation_id == conversation_id
+            )
+        )
+        session.add_all(
+            ConversationDocument(
+                conversation_id=conversation_id, document_id=document_id, position=position
+            )
+            for position, document_id in enumerate(valid_ids)
+        )
+        await session.commit()
+    except SQLAlchemyError:
+        await session.rollback()
+        raise
+
+    return valid_ids

@@ -10,7 +10,7 @@ from app.services.folder_service import resolve_folder_mentions
 from app.services.llm_service import LlmService, LlmServiceError
 from app.services.retrieval_service import RetrievedChunk, search_relevant_chunks
 
-SYSTEM_PROMPT = """Sen şirket içi doküman asistanısın.
+SYSTEM_PROMPT = """Sen kullanıcının yüklediği dokümanlar üzerinde çalışan bir doküman asistanısın.
 Yalnızca sana verilen kaynak metinlere dayanarak cevap ver.
 Soruda @Klasör adı geçiyorsa kaynaklar yalnızca o klasördeki dokümanlardan seçilmiştir.
 Kaynaklarda cevabı destekleyen bilgi yoksa bunu açıkça söyle ve tahmin yürütme.
