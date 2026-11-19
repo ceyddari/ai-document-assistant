@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     ollama_keep_alive_seconds: int = Field(default=1800, ge=-1)
     # Ollama's default context is small; 20 sources x 1000 chars would be silently truncated.
     ollama_llm_num_ctx: int = Field(default=8192, ge=2048)
+    # 0 runs embeddings on CPU: on small GPUs (8 GB) the LLM and bge-m3 do not fit together,
+    # so each question would evict and reload the LLM (~5 s). None lets Ollama decide.
+    ollama_embedding_num_gpu: int | None = Field(default=None, ge=0)
     ollama_embedding_batch_size: int = Field(default=16, ge=1, le=256)
     ollama_embedding_max_retries: int = Field(default=3, ge=0, le=10)
     ollama_embedding_retry_delay_seconds: float = Field(default=1, ge=0, le=60)

@@ -52,9 +52,13 @@ async def test_answer_question_retrieves_sources_and_calls_llm() -> None:
     session = AsyncMock(spec=AsyncSession)
     embedding_service = MagicMock()
     llm_service = MagicMock()
-    llm_service.generate_answer = AsyncMock(
-        return_value="İzin talebi sistemden oluşturulur. [Kaynak 1]"
-    )
+
+    async def generate_answer(**_: object) -> str:
+        # Both retrieval transactions must be closed before the model runs.
+        assert session.commit.await_count == 2
+        return "İzin talebi sistemden oluşturulur. [Kaynak 1]"
+
+    llm_service.generate_answer = AsyncMock(side_effect=generate_answer)
 
     with (
         patch(

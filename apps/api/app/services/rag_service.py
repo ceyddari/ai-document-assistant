@@ -246,6 +246,8 @@ async def _retrieve_sources(
     folder_ids, search_text = await resolve_folder_mentions(
         organization_id=organization_id, text=question, session=session
     )
+    # End the read-only transaction so the pooled connection is not held during LLM calls.
+    await session.commit()
     search_query = await rewrite_question(
         question=search_text or question,
         history=history,
@@ -261,6 +263,7 @@ async def _retrieve_sources(
         limit=limit,
         minimum_similarity=minimum_similarity,
     )
+    await session.commit()
     user_prompt = build_user_prompt(
         question=question,
         sources=sources,

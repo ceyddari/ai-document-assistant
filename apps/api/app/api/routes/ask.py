@@ -170,6 +170,8 @@ async def ask_question_stream(
         history, document_ids = await _load_context(
             organization_id=organization_id, request=request, session=session
         )
+        # The request session lives until the stream ends; release its connection now.
+        await session.commit()
     except Exception as error:
         mapped = _error_response(error)
         if mapped is None:
