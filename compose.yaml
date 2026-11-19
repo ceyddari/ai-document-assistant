@@ -3,12 +3,12 @@ services:
     image: pgvector/pgvector:0.8.6-pg17-trixie
 
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_document_assistant}
+      POSTGRES_USER: ${POSTGRES_USER:-app_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_local_only}
 
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5434}:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -17,7 +17,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
         ]
       interval: 5s
       timeout: 5s
@@ -26,8 +26,14 @@ services:
 
   api:
     build: ./apps/api
-    env_file: .env
+    # .env opsiyonel: yoksa buradaki ve config.py'deki varsayılanlar kullanılır.
+    env_file:
+      - path: .env
+        required: false
     environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_document_assistant}
+      POSTGRES_USER: ${POSTGRES_USER:-app_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_local_only}
       # Konteyner ağı içindeki adresler .env'deki host değerlerini ezer.
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
@@ -43,6 +49,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./apps/web
+    # 5173: API'nin CORS listesi bu portu bekliyor.
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
     restart: unless-stopped
 
 volumes:

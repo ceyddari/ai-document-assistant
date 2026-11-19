@@ -88,38 +88,42 @@ apps/
 │   ├── scripts/            Değerlendirme ve bakım script'leri
 │   └── tests/
 └── web/                    React + TypeScript arayüzü
-compose.yaml                PostgreSQL + API konteynerleri
-start-local.cmd             Tek tıkla yerel başlatma (Windows)
+compose.yaml                PostgreSQL + API + arayüz konteynerleri
+start-local.cmd             Tek tıkla kurulum ve başlatma (Windows)
 ```
 
 ## Kurulum
 
-### Docker ile (önerilen)
+### Hızlı başlangıç
 
-Gereksinimler: Docker Desktop ve host makinede [Ollama](https://ollama.com) (GPU ve modeller
-host'ta kalır).
+Yalnızca iki program gerekir: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+ve [Ollama](https://ollama.com). Python, Node.js veya `.env` dosyası gerekmez.
 
-```powershell
-Copy-Item .env.example .env
-ollama pull bge-m3
-ollama pull qwen3:8b
-docker compose up -d --build
-cd apps/web; npm install; npm run dev
+**Windows:** Projeyi indirip `start-local.cmd` dosyasına çift tıklayın. Script modelleri indirir,
+veritabanı + API + arayüzü başlatır ve tarayıcıda <http://127.0.0.1:5173> adresini açar.
+
+**macOS / Linux:**
+
+```bash
+ollama pull bge-m3 && ollama pull qwen3:8b && docker compose up -d --build
 ```
 
-PostgreSQL ve API konteynerde çalışır; migration'lar açılışta otomatik uygulanır. API, Ollama'ya
-`host.docker.internal:11434` üzerinden bağlanır (farklı adres için `.env` içine
-`DOCKER_OLLAMA_BASE_URL`). Yüklenen PDF'ler `storage/` altında kalır. `start-local.cmd` aynı
-işi tek tıkla yapar.
+İlk çalıştırma modelleri (~6 GB) indirip imajları oluşturduğu için birkaç dakika sürer; sonraki
+açılışlar saniyeler içinde olur.
 
 - Arayüz: <http://127.0.0.1:5173>
 - Swagger UI: <http://127.0.0.1:8000/docs>
 
-Durdurmak için `docker compose down`, loglar için `docker compose logs -f api`.
+PostgreSQL, API ve arayüz konteynerde çalışır; migration'lar açılışta otomatik uygulanır.
+Ollama host makinede kalır (GPU'yu doğrudan kullanır), API ona `host.docker.internal:11434`
+üzerinden bağlanır. Varsayılanları değiştirmek isterseniz `.env.example` dosyasını `.env` olarak
+kopyalayıp düzenleyin. Yüklenen PDF'ler `storage/` altında kalır. Durdurmak için
+`docker compose down`, loglar için `docker compose logs -f api`.
 
 ### Yerel geliştirme (hot reload)
 
-Gereksinimler: Python 3.13, Node.js, Docker Desktop ve Ollama.
+Yalnızca kod üzerinde çalışacaksanız gerekir. Gereksinimler: Python 3.13, Node.js, Docker
+Desktop ve Ollama. Önce `docker compose stop web api` ile konteyner sürümlerini durdurun.
 
 ```powershell
 py -V:3.13 -m venv .venv
