@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -127,3 +128,37 @@ async def test_process_document_in_background_handles_processing_error(
     await process_document_in_background(document_id)
 
     process_document_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_process_document_in_background_runs_one_document_at_a_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = AsyncMock(spec=AsyncSession)
+    session.get.return_value = MagicMock(spec=Document)
+    running = 0
+    peak = 0
+
+    async def slow_process(**_: object) -> None:
+        nonlocal running, peak
+        running += 1
+        peak = max(peak, running)
+        await asyncio.sleep(0.01)
+        running -= 1
+
+    # A fresh semaphore binds to this test's event loop.
+    monkeypatch.setattr("app.tasks.document_tasks._processing_slot", asyncio.Semaphore(1))
+    monkeypatch.setattr(
+        "app.tasks.document_tasks.get_session_factory",
+        lambda: create_session_factory(session),
+    )
+    monkeypatch.setattr("app.tasks.document_tasks.get_settings", MagicMock())
+    monkeypatch.setattr("app.tasks.document_tasks.EmbeddingService", MagicMock())
+    monkeypatch.setattr(
+        "app.tasks.document_tasks.process_document", AsyncMock(side_effect=slow_process)
+    )
+
+    await asyncio.gather(*(process_document_in_background(uuid4()) for _ in range(3)))
+
+    assert peak == 1
+    assert session.get.await_count == 3
