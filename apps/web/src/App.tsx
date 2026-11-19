@@ -104,6 +104,16 @@ function App() {
 
   useEffect(() => { if (session && !organizationId) setOrganizationId(session.organization_id ?? session.organization_ids[0] ?? ""); }, [session, organizationId]);
   useEffect(() => { void refresh(); }, [refresh]);
+  // Panels become overlays below these widths; keep the chat visible when the viewport shrinks.
+  useEffect(() => {
+    const narrowLibrary = window.matchMedia("(max-width: 1050px)");
+    const narrowSidebar = window.matchMedia("(max-width: 720px)");
+    const onLibrary = () => setLibraryOpen(!narrowLibrary.matches);
+    const onSidebar = () => setSidebarOpen(!narrowSidebar.matches);
+    narrowLibrary.addEventListener("change", onLibrary);
+    narrowSidebar.addEventListener("change", onSidebar);
+    return () => { narrowLibrary.removeEventListener("change", onLibrary); narrowSidebar.removeEventListener("change", onSidebar); };
+  }, []);
   useEffect(() => {
     if (!documents.some(document => document.status === "pending" || document.status === "processing")) return;
     const timer = window.setTimeout(() => { void refreshDocuments(); }, 2000);
@@ -452,8 +462,8 @@ function App() {
       uploading={uploading}
       retryingDocumentId={retryingDocumentId}
       onToggleSelect={toggleScope}
-      onChatWithDocument={document => startNewConversation([document.id])}
-      onChatWithFolder={folder => startNewConversation(documents.filter(item => item.folder_id === folder.id && item.status === "ready").map(item => item.id))}
+      onChatWithDocument={document => { closeOverlays(); startNewConversation([document.id]); }}
+      onChatWithFolder={folder => { closeOverlays(); startNewConversation(documents.filter(item => item.folder_id === folder.id && item.status === "ready").map(item => item.id)); }}
       onRetry={document => void retryDocument(document)}
       onDelete={setPendingDocumentDelete}
       onMove={(documentId, folderId) => void moveDocument(documentId, folderId)}
