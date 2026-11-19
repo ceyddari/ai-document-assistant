@@ -36,7 +36,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
 export const api = {
   login: (email: string, password: string) =>
     request<AuthSession>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
-  register: (data: { email: string; password: string; organization_name: string; organization_slug: string }) =>
+  register: (data: { email: string; password: string; organization_name?: string; organization_slug?: string }) =>
     request<AuthSession>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
   logout: (token: string) => request<void>("/auth/logout", { method: "POST" }, token),
   documents: (organizationId: string, token: string) =>

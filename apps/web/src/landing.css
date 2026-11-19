@@ -21,6 +21,12 @@
 .auth-card label{display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:600;margin-bottom:18px}
 .auth-card input{border:1px solid #d5d6cf;background:#fff;padding:14px 15px;border-radius:8px;outline:none}
 .auth-card input:focus{border-color:#2e6b57;box-shadow:0 0 0 3px #2e6b5715}
+.account-type{display:grid;grid-template-columns:1fr 1fr;gap:6px;border:1px solid #ffffff16;border-radius:12px;padding:4px;margin:0 0 20px;background:#1c1722}
+.account-type legend{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.account-type label{flex-direction:row;justify-content:center;margin:0;padding:10px;border-radius:9px;cursor:pointer;color:#a88cb9}
+.account-type label:has(input:checked){background:#3a2347;color:#f3eff7}
+.account-type label:has(input:focus-visible){outline:2px solid #d18ae8;outline-offset:2px}
+.account-type input{position:absolute;opacity:0;pointer-events:none}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .primary-button{width:100%;border:0;border-radius:8px;background:#1d5443;color:white;padding:15px 18px;display:flex;justify-content:space-between}
 .primary-button:disabled{opacity:.6}

@@ -8,6 +8,7 @@ export function AuthScreen({ onAuthenticated, initialMode }: { onAuthenticated: 
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [accountType, setAccountType] = useState<"personal" | "organization">("personal");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setLoading(true); setError("");
@@ -17,7 +18,9 @@ export function AuthScreen({ onAuthenticated, initialMode }: { onAuthenticated: 
         ? await api.login(String(data.get("email")), String(data.get("password")))
         : await api.register({
           email: String(data.get("email")), password: String(data.get("password")),
-          organization_name: String(data.get("organization_name")), organization_slug: String(data.get("organization_slug")),
+          ...(accountType === "organization" && {
+            organization_name: String(data.get("organization_name")), organization_slug: String(data.get("organization_slug")),
+          }),
         });
       onAuthenticated(session);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Bağlantı kurulamadı."); }
@@ -37,9 +40,14 @@ export function AuthScreen({ onAuthenticated, initialMode }: { onAuthenticated: 
       <div className="auth-card">
         <p className="eyebrow">{mode === "login" ? "Tekrar hoş geldiniz" : "Yeni çalışma alanı"}</p>
         <h2>{mode === "login" ? "Hesabınıza giriş yapın" : "Kullanmaya başlayın"}</h2>
-        <p className="muted">{mode === "login" ? "Dokümanlarınıza ve konuşmalarınıza devam edin." : "Hesabınızla birlikte ilk organizasyonunuz oluşturulur."}</p>
+        <p className="muted">{mode === "login" ? "Dokümanlarınıza ve konuşmalarınıza devam edin." : accountType === "personal" ? "Dokümanlarınız için size özel bir çalışma alanı oluşturulur." : "Hesabınızla birlikte organizasyonunuz oluşturulur."}</p>
         <form onSubmit={submit}>
-          {mode === "register" && <div className="field-row">
+          {mode === "register" && <fieldset className="account-type">
+            <legend>Kullanım şekli</legend>
+            <label><input type="radio" name="account_type" checked={accountType === "personal"} onChange={() => setAccountType("personal")} />Kişisel</label>
+            <label><input type="radio" name="account_type" checked={accountType === "organization"} onChange={() => setAccountType("organization")} />Organizasyon</label>
+          </fieldset>}
+          {mode === "register" && accountType === "organization" && <div className="field-row">
             <label>Organizasyon adı<input name="organization_name" required placeholder="Acme Teknoloji" /></label>
             <label>Kısa adres<input name="organization_slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="acme-teknoloji" /></label>
           </div>}
