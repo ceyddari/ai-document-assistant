@@ -6,7 +6,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import cache
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -16,6 +16,7 @@ from app.models import AuthSession, Organization, OrganizationMembership, Organi
 
 PBKDF2_ITERATIONS = 600_000
 SESSION_LIFETIME = timedelta(hours=24)
+PERSONAL_WORKSPACE_NAME = "Kişisel çalışma alanı"
 
 
 class CredentialsError(Exception):
@@ -75,10 +76,13 @@ async def register_user_and_organization(
     *,
     email: str,
     password: str,
-    organization_name: str,
-    organization_slug: str,
+    organization_name: str | None,
+    organization_slug: str | None,
     session: AsyncSession,
 ) -> tuple[User, Organization, IssuedToken]:
+    if organization_name is None or organization_slug is None:
+        organization_name = PERSONAL_WORKSPACE_NAME
+        organization_slug = f"kisisel-{uuid4().hex[:16]}"
     # PBKDF2 is CPU-bound; keep it off the event loop so other requests are not stalled.
     password_hash = await asyncio.to_thread(hash_password, password)
     try:

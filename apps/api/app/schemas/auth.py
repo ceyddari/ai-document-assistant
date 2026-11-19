@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 Email = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=320)]
 Password = Annotated[str, StringConstraints(min_length=10, max_length=128)]
@@ -11,9 +11,11 @@ Password = Annotated[str, StringConstraints(min_length=10, max_length=128)]
 class RegisterRequest(BaseModel):
     email: Email
     password: Password
-    organization_name: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)
-    ]
+    # Both omitted = personal use: a private workspace is created behind the scenes.
+    organization_name: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
+        | None
+    ) = None
     organization_slug: Annotated[
         str,
         StringConstraints(
@@ -22,7 +24,7 @@ class RegisterRequest(BaseModel):
             max_length=100,
             pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
         ),
-    ]
+    ] | None = None
 
     @field_validator("email")
     @classmethod
@@ -37,6 +39,12 @@ class RegisterRequest(BaseModel):
         if not any(char.isalpha() for char in value) or not any(char.isdigit() for char in value):
             raise ValueError("Parola en az bir harf ve bir rakam içermelidir.")
         return value
+
+    @model_validator(mode="after")
+    def require_both_or_neither_organization_field(self) -> "RegisterRequest":
+        if (self.organization_name is None) != (self.organization_slug is None):
+            raise ValueError("Organizasyon adı ve kısa adres birlikte girilmelidir.")
+        return self
 
 
 class LoginRequest(BaseModel):

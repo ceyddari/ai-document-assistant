@@ -104,6 +104,41 @@ def test_register_returns_user_organization_and_token(
     assert response.json()["access_token"] == token.value
 
 
+def test_register_without_organization_is_personal(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = User(
+        id=uuid4(), email="solo@example.com", password_hash="hidden", created_at=datetime.now(UTC)
+    )
+    organization = Organization(
+        id=uuid4(), name="Kişisel çalışma alanı", slug="kisisel-x", created_at=datetime.now(UTC)
+    )
+    token = IssuedToken(value="new-token", expires_at=datetime.now(UTC) + timedelta(hours=24))
+    register = AsyncMock(return_value=(user, organization, token))
+    monkeypatch.setattr("app.api.routes.auth.register_user_and_organization", register)
+
+    response = client.post(
+        "/auth/register", json={"email": "solo@example.com", "password": "strong-password-123"}
+    )
+
+    assert response.status_code == 201
+    assert register.await_args.kwargs["organization_name"] is None
+    assert register.await_args.kwargs["organization_slug"] is None
+
+
+def test_register_rejects_half_filled_organization(client: TestClient) -> None:
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "owner@example.com",
+            "password": "strong-password-123",
+            "organization_name": "Acme",
+        },
+    )
+
+    assert response.status_code == 422
+
+
 @pytest.mark.parametrize(
     "password",
     ["short1", "onlyletterslong", "1234567890123"],
