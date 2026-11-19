@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     ollama_embedding_max_retries: int = Field(default=3, ge=0, le=10)
     ollama_embedding_retry_delay_seconds: float = Field(default=1, ge=0, le=60)
     retrieval_min_similarity: float = Field(default=0.35, ge=0, le=1)
+    rag_rerank_enabled: bool = False
+    rag_verify_citations: bool = True
+    rag_complex_questions: bool = True
+    rag_adaptive_quality: bool = True
+    # Summarize every section once after upload so summaries cover the whole document.
+    rag_section_summaries: bool = True
 
     storage_directory: Path = Path("storage/documents")
     max_upload_size_mb: int = 10

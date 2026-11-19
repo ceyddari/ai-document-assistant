@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -20,6 +21,7 @@ from app.api.routes import (
 from app.core.config import get_settings
 from app.db.session import get_session_factory
 from app.services import fail_interrupted_documents
+from app.tasks.document_tasks import summarize_missing_documents
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             logger.warning("Yarıda kalan %s doküman 'failed' olarak işaretlendi.", count)
     except (OSError, SQLAlchemyError):
         logger.exception("Yarıda kalan dokümanlar açılışta güncellenemedi.")
+    summaries = asyncio.create_task(summarize_missing_documents())
     yield
+    summaries.cancel()
 
 
 app = FastAPI(

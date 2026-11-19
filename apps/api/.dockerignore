@@ -3,4 +3,5 @@
 .ruff_cache
 *.egg-info
 tests
-scripts
+scripts/*
+!scripts/evaluate_retrieval.py

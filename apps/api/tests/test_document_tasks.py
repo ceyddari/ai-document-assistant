@@ -7,7 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Document
 from app.services import DocumentProcessingError
-from app.tasks.document_tasks import process_document_in_background
+from app.services.llm_service import LlmServiceError
+from app.tasks.document_tasks import (
+    process_document_in_background,
+    summarize_document_in_background,
+)
+
+
+@pytest.fixture(autouse=True)
+def summarize(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    mock = AsyncMock()
+    monkeypatch.setattr("app.tasks.document_tasks.summarize_document_in_background", mock)
+    return mock
 
 
 def create_session_factory(
@@ -22,7 +33,7 @@ def create_session_factory(
 
 @pytest.mark.asyncio
 async def test_process_document_in_background_processes_document(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, summarize: AsyncMock
 ) -> None:
     document_id = uuid4()
     document = MagicMock(spec=Document)
@@ -65,6 +76,7 @@ async def test_process_document_in_background_processes_document(
         session=session,
         embedding_service=embedding_service,
     )
+    summarize.assert_awaited_once_with(document_id)
 
 
 @pytest.mark.asyncio
@@ -95,7 +107,7 @@ async def test_process_document_in_background_stops_when_document_is_missing(
 
 @pytest.mark.asyncio
 async def test_process_document_in_background_handles_processing_error(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, summarize: AsyncMock
 ) -> None:
     document_id = uuid4()
     document = MagicMock(spec=Document)
@@ -128,6 +140,7 @@ async def test_process_document_in_background_handles_processing_error(
     await process_document_in_background(document_id)
 
     process_document_mock.assert_awaited_once()
+    summarize.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -162,3 +175,23 @@ async def test_process_document_in_background_runs_one_document_at_a_time(
 
     assert peak == 1
     assert session.get.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_summary_failure_is_logged_not_raised(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The autouse fixture replaced the module attribute; this test needs the real function.
+    session = AsyncMock(spec=AsyncSession)
+    monkeypatch.setattr("app.tasks.document_tasks._summary_slot", asyncio.Semaphore(1))
+    monkeypatch.setattr(
+        "app.tasks.document_tasks.get_session_factory", lambda: create_session_factory(session)
+    )
+    monkeypatch.setattr("app.tasks.document_tasks.get_settings", MagicMock())
+    monkeypatch.setattr("app.tasks.document_tasks.LlmService", MagicMock())
+    monkeypatch.setattr(
+        "app.tasks.document_tasks.summarize_document",
+        AsyncMock(side_effect=LlmServiceError("zaman aşımı")),
+    )
+
+    await summarize_document_in_background(uuid4())
+
+    session.rollback.assert_awaited_once()

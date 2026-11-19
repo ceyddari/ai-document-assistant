@@ -8,10 +8,11 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 COPY app ./app
-RUN pip install .
+RUN pip install '.[rerank]'
 
 COPY alembic.ini ./
 COPY alembic ./alembic
+COPY scripts/evaluate_retrieval.py ./scripts/
 
 EXPOSE 8000
 

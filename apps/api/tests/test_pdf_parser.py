@@ -7,6 +7,7 @@ from reportlab.pdfgen.canvas import Canvas
 from app.services.pdf_parser import (
     EncryptedPdfError,
     PdfParsingError,
+    parse_outline,
     parse_pdf,
 )
 
@@ -81,3 +82,30 @@ def test_parse_pdf_rejects_encrypted_pdf(tmp_path: Path) -> None:
         match="Şifreli PDF dosyaları henüz desteklenmiyor",
     ):
         parse_pdf(pdf_path)
+
+
+def test_parse_outline_reads_nested_bookmarks_with_pages(tmp_path: Path) -> None:
+    writer = PdfWriter()
+    for _ in range(3):
+        writer.add_blank_page(width=612, height=792)
+    intro = writer.add_outline_item("Giriş", 0)
+    writer.add_outline_item("Amaç", 1, parent=intro)
+    writer.add_outline_item("Sonuç", 2)
+    pdf_path = tmp_path / "outline.pdf"
+    with pdf_path.open("wb") as file:
+        writer.write(file)
+
+    assert [(e.level, e.title, e.page_number) for e in parse_outline(pdf_path)] == [
+        (1, "Giriş", 1),
+        (2, "Amaç", 2),
+        (1, "Sonuç", 3),
+    ]
+
+
+def test_parse_outline_is_empty_without_bookmarks_or_for_broken_files(tmp_path: Path) -> None:
+    blank, broken = tmp_path / "blank.pdf", tmp_path / "broken.pdf"
+    create_blank_pdf(blank)
+    broken.write_bytes(b"not a pdf")
+
+    assert parse_outline(blank) == []
+    assert parse_outline(broken) == []

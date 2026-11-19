@@ -30,6 +30,7 @@ include = ["app*"]
 exclude = ["alembic*", "tests*"]
 
 [project.optional-dependencies]
+rerank = ["huggingface-hub", "onnxruntime", "tokenizers"]
 dev = [
     "pytest",
     "pytest-asyncio",

@@ -2,6 +2,7 @@ from app.models.auth import AuthSession, OrganizationMembership, OrganizationRol
 from app.models.conversation import Conversation, ConversationDocument
 from app.models.document import Document, DocumentStatus
 from app.models.document_chunk import EMBEDDING_DIMENSIONS, TEXT_SEARCH_CONFIG, DocumentChunk
+from app.models.document_section_summary import DocumentSectionSummary
 from app.models.folder import Folder
 from app.models.message import Message, MessageRole
 from app.models.message_source import MessageSource
@@ -15,6 +16,7 @@ __all__ = [
     "ConversationDocument",
     "Document",
     "DocumentChunk",
+    "DocumentSectionSummary",
     "DocumentStatus",
     "Folder",
     "Message",

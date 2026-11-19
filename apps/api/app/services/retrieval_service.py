@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import Row, Text, cast, func, literal_column, select
+from sqlalchemy import Row, Text, and_, cast, func, literal_column, or_, select
 from sqlalchemy.dialects.postgresql import TSQUERY
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,11 @@ from app.services.embedding_service import EmbeddingService
 KEYWORD_SCORE_WEIGHT = 0.05
 MIN_CANDIDATES_PER_RETRIEVER = 20
 CANDIDATES_PER_RESULT = 4
+SUMMARY_CHUNK_LIMIT = 48
+# A printed table of contents sits in the front matter and rarely spans more than three pages.
+CONTENTS_PAGE_LIMIT = 20
+CONTENTS_SPAN_PAGES = 2
+CONTENTS_CHUNK_LIMIT = 12
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,3 +169,138 @@ async def search_relevant_chunks(
     keyword_rows = (await session.execute(keyword_statement)).all()
 
     return fuse_scores(vector_rows, keyword_rows, limit=limit)
+
+
+async def read_summary_chunks(
+    *,
+    organization_id: UUID,
+    session: AsyncSession,
+    folder_ids: list[UUID],
+    document_ids: list[UUID] | None,
+) -> tuple[list[RetrievedChunk], bool]:
+    if not folder_ids and not document_ids:
+        raise ValueError("Özet için doküman veya klasör seçilmelidir.")
+
+    in_scope = (
+        select(
+            DocumentChunk.id,
+            func.row_number()
+            .over(order_by=(DocumentChunk.document_id, DocumentChunk.chunk_index))
+            .label("position"),
+            func.count().over().label("total"),
+        )
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(
+            DocumentChunk.organization_id == organization_id,
+            Document.organization_id == organization_id,
+            Document.status == DocumentStatus.READY,
+        )
+    )
+    if folder_ids:
+        in_scope = in_scope.where(Document.folder_id.in_(folder_ids))
+    if document_ids:
+        in_scope = in_scope.where(Document.id.in_(document_ids))
+
+    positions = in_scope.subquery()
+    # Select the first chunk from each equally sized span over the scope. Small scopes keep every chunk.
+    span = func.floor((positions.c.position - 1) * SUMMARY_CHUNK_LIMIT / positions.c.total)
+    selected = (
+        select(positions.c.id, positions.c.total)
+        .distinct(span)
+        .order_by(span, positions.c.position)
+        .subquery()
+    )
+    statement = (
+        select(
+            DocumentChunk.id,
+            DocumentChunk.document_id,
+            Document.original_filename,
+            DocumentChunk.page_number,
+            DocumentChunk.content,
+            selected.c.total,
+        )
+        .join(selected, selected.c.id == DocumentChunk.id)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .order_by(DocumentChunk.document_id, DocumentChunk.chunk_index)
+    )
+    rows = (await session.execute(statement)).all()
+    return [RetrievedChunk(*row[:5], similarity=0.0) for row in rows], bool(
+        rows and rows[0].total > len(rows)
+    )
+
+
+async def read_document_files(
+    *,
+    organization_id: UUID,
+    session: AsyncSession,
+    folder_ids: list[UUID],
+    document_ids: list[UUID] | None,
+) -> list[tuple[str, str]]:
+    """(filename, storage path) of the ready documents in scope, ordered by filename."""
+    statement = select(Document.original_filename, Document.storage_path).where(
+        Document.organization_id == organization_id,
+        Document.status == DocumentStatus.READY,
+    )
+    if folder_ids:
+        statement = statement.where(Document.folder_id.in_(folder_ids))
+    if document_ids:
+        statement = statement.where(Document.id.in_(document_ids))
+    rows = await session.execute(statement.order_by(Document.original_filename))
+    return [(row.original_filename, row.storage_path) for row in rows]
+
+
+async def read_contents_chunks(
+    *,
+    organization_id: UUID,
+    session: AsyncSession,
+    folder_ids: list[UUID],
+    document_ids: list[UUID] | None,
+) -> list[RetrievedChunk]:
+    """Chunks of each document's printed table of contents page and the pages right after it."""
+    # LIKE per spelling: lower() of the Turkish dotted İ depends on the database locale.
+    marker = or_(
+        *(DocumentChunk.content.like(f"%{word}%") for word in ("İÇİNDEKİLER", "İçindekiler")),
+        DocumentChunk.content.ilike("%table of contents%"),
+        DocumentChunk.content.like("%CONTENTS%"),
+    )
+    scope = [
+        DocumentChunk.organization_id == organization_id,
+        Document.organization_id == organization_id,
+        Document.status == DocumentStatus.READY,
+    ]
+    if folder_ids:
+        scope.append(Document.folder_id.in_(folder_ids))
+    if document_ids:
+        scope.append(Document.id.in_(document_ids))
+
+    contents_pages = (
+        select(DocumentChunk.document_id, func.min(DocumentChunk.page_number).label("page"))
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(*scope, marker, DocumentChunk.page_number <= CONTENTS_PAGE_LIMIT)
+        .group_by(DocumentChunk.document_id)
+        .subquery()
+    )
+    statement = (
+        select(
+            DocumentChunk.id,
+            DocumentChunk.document_id,
+            Document.original_filename,
+            DocumentChunk.page_number,
+            DocumentChunk.content,
+        )
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .join(
+            contents_pages,
+            and_(
+                contents_pages.c.document_id == DocumentChunk.document_id,
+                DocumentChunk.page_number.between(
+                    contents_pages.c.page, contents_pages.c.page + CONTENTS_SPAN_PAGES
+                ),
+            ),
+        )
+        .where(*scope)
+        .order_by(DocumentChunk.document_id, DocumentChunk.chunk_index)
+        .limit(CONTENTS_CHUNK_LIMIT)
+    )
+    rows = (await session.execute(statement)).all()
+    return [RetrievedChunk(*row, similarity=0.0) for row in rows]

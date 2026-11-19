@@ -12,6 +12,7 @@ from app.models import OrganizationMembership
 def skip_startup_database_work(monkeypatch: pytest.MonkeyPatch) -> None:
     # `with TestClient(app)` runs the lifespan; keep it away from the real database.
     monkeypatch.setattr("app.main.fail_interrupted_documents", AsyncMock(return_value=0))
+    monkeypatch.setattr("app.main.summarize_missing_documents", AsyncMock())
 
 
 @pytest.fixture(autouse=True)

@@ -27,7 +27,7 @@ from app.services import (
     persist_rag_exchange,
     stream_answer_question,
 )
-from app.services.rag_service import HISTORY_MESSAGE_LIMIT
+from app.services.rag_service import HISTORY_MESSAGE_LIMIT, RagOptions
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +130,7 @@ async def ask_question(
             document_ids=document_ids,
             limit=request.limit,
             minimum_similarity=settings.retrieval_min_similarity,
+            options=RagOptions.from_settings(settings),
         )
         exchange = await persist_rag_exchange(
             organization_id=organization_id,
@@ -197,6 +198,7 @@ async def ask_question_stream(
                     document_ids=document_ids,
                     limit=request.limit,
                     minimum_similarity=settings.retrieval_min_similarity,
+                    options=RagOptions.from_settings(settings),
                 ):
                     if isinstance(item, str):
                         yield _sse({"type": "token", "text": item})

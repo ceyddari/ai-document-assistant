@@ -21,12 +21,13 @@ from app.services import (
     RagAnswer,
     RetrievedChunk,
 )
-from app.services.rag_service import HISTORY_MESSAGE_LIMIT
+from app.services.rag_service import HISTORY_MESSAGE_LIMIT, RagOptions
 
 
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
+        _env_file=None,
         postgres_db="test_database",
         postgres_user="test_user",
         postgres_password="test_password",
@@ -35,6 +36,10 @@ def settings() -> Settings:
         ollama_base_url="http://localhost:11434",
         ollama_embedding_model="bge-m3",
         ollama_llm_model="qwen3:8b",
+        rag_rerank_enabled=False,
+        rag_verify_citations=True,
+        rag_complex_questions=True,
+        rag_adaptive_quality=True,
     )
 
 
@@ -153,6 +158,7 @@ def test_ask_returns_answer_with_sources(
         document_ids=None,
         limit=4,
         minimum_similarity=0.35,
+        options=RagOptions(verify_citations=True, complex_questions=True, adaptive_quality=True),
     )
     get_recent_messages_mock.assert_awaited_once_with(
         organization_id=organization_id,
